@@ -18,7 +18,8 @@
 
 #define RECEIVER_MESSAGE_QUEUE "/servidor_receiver"
 #define SHM_MAP_PATH "/servidor_map_shm"
-
+#define ASTEROID_SYMBOL "*"   /* replace with your unicode: e.g. "🪨" */
+#define NUM_ASTEROIDS 10
 typedef struct {
     WINDOW *win;
     mqd_t receiver;
@@ -32,6 +33,7 @@ typedef struct {
 
 void *receive_mq(void *param);
 void *print_map(void *param);
+void place_asteroids(char map[][WIN_WIDTH]);
 
 int main(int argc, char *argv[])
 {
@@ -70,6 +72,7 @@ int main(int argc, char *argv[])
     }
 
     memset(map, ' ', map_size);
+    place_asteroids(map);
     
     mqd_t receiver;
     if ((receiver = mq_open (RECEIVER_MESSAGE_QUEUE,  O_RDWR)) == -1) { 
@@ -166,4 +169,21 @@ void *print_map(void *param) {
     }
 
     return NULL;
+}
+
+void place_asteroids(char map[][WIN_WIDTH])
+{
+    int placed = 0;
+
+    while (placed < NUM_ASTEROIDS) {
+        /* Random coords avoiding borders (row 0, WIN_HEIGHT-1, col 0, WIN_WIDTH-1) */
+        int row = 1 + rand() % (WIN_HEIGHT - 2);
+        int col = 1 + rand() % (WIN_WIDTH  - 2);
+
+        /* Only place if the cell is empty */
+        if (map[row][col] == ' ') {
+            map[row][col] = '*';   /* swap '*' for your unicode char if needed */
+            placed++;
+        }
+    }
 }
