@@ -11,6 +11,8 @@
 
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include "asteroids.h"
+#include "config.h" 
 
 // parámetros de pantalla
 #define WIN_WIDTH 90
@@ -22,6 +24,10 @@
 #define RECEIVER_MESSAGE_QUEUE "/servidor_receiver"
 // path de la memoria compartida
 #define SHM_MAP_PATH "/servidor_map_shm"
+#define ASTEROID_SYMBOL "*"   /* replace with your unicode: e.g. "🪨" */
+#define NUM_ASTEROIDS 10
+
+Asteroid asteroids[NUM_ASTEROIDS];
 
 // estructura de datos para el hilo receiver
 typedef struct {
@@ -39,6 +45,7 @@ typedef struct {
 // declaración de funciones para tener los hilos abajo
 void *receive_mq(void *param);
 void *print_map(void *param);
+void place_asteroids(char map[][WIN_WIDTH]);
 
 int main(int argc, char *argv[])
 {
@@ -82,6 +89,7 @@ int main(int argc, char *argv[])
     }
     // seteo todos los valores del mapa a espacios
     memset(map, ' ', map_size);
+    place_asteroids(map);
     
     // message queue
     mqd_t receiver;
@@ -181,4 +189,38 @@ void *print_map(void *param) {
     }
 
     return NULL;
+}
+
+
+void place_asteroids(char map[][WIN_WIDTH])
+{
+    int placed = 0;
+
+    while (placed < NUM_ASTEROIDS) {
+        int row = 1 + rand() % (WIN_HEIGHT - 2);
+        int col = 1 + rand() % (WIN_WIDTH  - 2);
+
+        /* Skip if cell is not empty (collision check with station or other asteroid) */
+        if (map[row][col] != ' ')
+            continue;
+
+        /* Fill the struct */
+        Asteroid *a = &asteroids[placed];
+        a->row    = row;
+        a->col    = col;
+        a->active = 1;
+
+        /* Deuterio: always present */
+        a->deuterio = 20 + rand() % 31;        /* 20-50 */
+
+        /* The other three minerals are optional (50% chance each) */
+        a->mutexio    = (rand() % 2) ? (5  + rand() % 6)  : 0;   /* 5-10  or 0 */
+        a->semaforita = (rand() % 2) ? (3  + rand() % 6)  : 0;   /* 3-8   or 0 */
+        a->kernelio   = (rand() % 2) ? (1  + rand() % 3)  : 0;   /* 1-3   or 0 */
+
+        /* Paint the map */
+        map[row][col] = '*';   /* '*' = asteroid symbol, swap for unicode if needed */
+
+        placed++;
+    }
 }
