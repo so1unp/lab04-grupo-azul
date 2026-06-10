@@ -1,97 +1,198 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "nave.h" /*estructura de la nave y prototipos de funciones, se puede poner un struct sin necesidad de hacer nave.h (si quieren hacerlo de esa manera lo puedes modificar nomas, 2 archivos en uno)
-*/
-// valores iniciales para una nave recien creada (constantes)
-#define COMBUSTIBLE_INICIAL  100
-#define OXIGENO_INICIAL      100
-#define COSTO_MOVIMIENTO       1   /*cada movimiento del teclado gasta combustible */
+#include <ncurses.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-Nave *nave_crear(int id, int x_inicial, int y_inicial) //funcion para crear una nave, recibe un id y una posicion inicial (x,y)
-{
-    Nave *nave = malloc(sizeof(Nave)); //reservo espacio en la RAM para guardar datos de la nave
-    if (nave == NULL) {                //si no se pudo reservar espacio en la RAM, se muestra un mensaje de error y se retorna NULL
-        perror("malloc nave");         //muestra mensaje de error
-        return NULL;                   //no se pudo crear la nave por lo tanto retorna NULL
+#include "nave.h"
+
+#define WIN_WIDTH 90
+#define WIN_HEIGHT 30
+#define SHM_MAP_PATH "/servidor_map_shm"
+
+Nave *nave_crear(int id, int x_inicial, int y_inicial);
+void nave_destruir(Nave *nave);
+void nave_mostrar_info(WINDOW *win, const Nave *nave);
+int nave_mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa);
+int nave_consumir_combustible(Nave *nave, int cantidad);
+int nave_consumir_oxigeno(Nave *nave, int cantidad);
+
+static void dibujar(WINDOW *map_win, WINDOW *info_win, char mapa[WIN_HEIGHT][WIN_WIDTH], const Nave *nave) {
+    werase(map_win);
+    box(map_win, 0, 0);
+
+    for (int y = 1; y < WIN_HEIGHT - 1; y++) {
+        for (int x = 1; x < WIN_WIDTH - 1; x++) {
+            if (x == nave->x && y == nave->y) {
+                mvwaddch(map_win, y, x, nave->simbolo);
+            } else {
+                mvwaddch(map_win, y, x, mapa[y][x]);
+            }
+        }
+    }
+    wrefresh(map_win);
+
+    nave_mostrar_info(info_win, nave);
+}
+
+int main(void) {
+    int shm_fd;
+    size_t map_size = WIN_HEIGHT * WIN_WIDTH;
+    char (*mapa)[WIN_WIDTH];
+
+    shm_fd = shm_open(SHM_MAP_PATH, O_RDWR, 0);
+    if (shm_fd < 0) {
+        perror("Error al acceder a la memoria compartida del servidor");
+        return 1;
     }
 
-    nave->id          = id;                     //asigno el id a la nave
-    nave->x           = x_inicial;              //inicializo la posicion de la nave con los valores recibidos por parametro
-    nave->y           = y_inicial;              //inicializo la posicion de la nave con los valores recibidos por parametro
-    nave->combustible = COMBUSTIBLE_INICIAL;    //inicializo el combustible en 100
-    nave->oxigeno     = OXIGENO_INICIAL;        //inicializo el nivel de oxigeno en 100
-    nave->activa      = 1;                      //1= vivo , 0= muerto (game over) 
-    nave->simbolo     = 'N';  //es lo que se representara en el espacio, osea nave es un N :v
+    mapa = mmap(NULL, map_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (mapa == MAP_FAILED) {
+        perror("Error en mmap");
+        close(shm_fd);
+        return 1;
+    }
 
-    /* Cargamento vacio */
-    for (int i = 0; i < NUM_RECURSOS; i++) {        //inicializo el cargamento de recursos en 0, (no hay nada por que la nave recien se creo)
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    curs_set(0);
+
+    WINDOW *map_win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
+    WINDOW *info_win = newwin(14, 35, 0, WIN_WIDTH + 2);
+
+    Nave *nave = nave_crear(1, WIN_WIDTH / 2, WIN_HEIGHT / 2);
+    if (nave == NULL) {
+        endwin();
+        munmap(mapa, map_size);
+        close(shm_fd);
+        fprintf(stderr, "Error: no se pudo crear la nave\n");
+        return 1;
+    }
+
+    int salir = 0;
+    while (!salir) {
+        dibujar(map_win, info_win, mapa, nave);
+
+        int tecla = wgetch(map_win);
+        int dx = 0, dy = 0;
+
+        switch (tecla) {
+            case 'w': dy = -1; break;
+            case 's': dy = 1; break;
+            case 'a': dx = -1; break;
+            case 'd': dx = 1; break;
+            case 'q': salir = 1; break;
+            default: break;
+        }
+
+        if ((dx != 0 || dy != 0) && nave->activa) {
+            if (nave_mover(nave, dx, dy, WIN_WIDTH, WIN_HEIGHT)) {
+                nave_consumir_oxigeno(nave, 1);
+            }
+        }
+    }
+
+    werase(map_win);
+    werase(info_win);
+    endwin();
+
+    nave_destruir(nave);
+    munmap(mapa, map_size);
+    close(shm_fd);
+
+    return 0;
+}
+
+Nave *nave_crear(int id, int x_inicial, int y_inicial) {
+    Nave *nave = malloc(sizeof(Nave));
+    if (nave == NULL) {
+        perror("malloc nave");
+        return NULL;
+    }
+
+    nave->id          = id;
+    nave->x           = x_inicial;
+    nave->y           = y_inicial;
+    nave->combustible = COMBUSTIBLE_INICIAL;
+    nave->oxigeno     = OXIGENO_INICIAL;
+    nave->activa      = 1;
+    nave->simbolo     = 'N';
+
+    for (int i = 0; i < NUM_RECURSOS; i++) {
         nave->cargamento[i] = 0;
     }
 
     return nave;
 }
-//libera memoria
 
-void nave_destruir(Nave *nave)
-{
+void nave_destruir(Nave *nave) {
     if (nave != NULL) {
         free(nave);
     }
 }
 
-// imprime los datos en pantalla de la nave
-void nave_mostrar_info(const Nave *nave) {
-    if (nave == NULL){ //si la nave no fue creada entonces 
-    return;
+void nave_mostrar_info(WINDOW *win, const Nave *nave) {
+    if (win == NULL || nave == NULL) {
+        return;
     }
-    printf("  Nave %d\n", nave->id);
-    printf("  Posicion:    (%d, %d)\n", nave->x, nave->y);
-    printf("  Combustible: %d\n", nave->combustible);
-    printf("  Oxigeno:     %d\n", nave->oxigeno);
-    if (nave->activa) {     // 1 = activa, 0 = desactivada (game over)
-    printf("  Estado:      ACTIVA\n");
+
+    werase(win);
+    box(win, 0, 0);
+
+    mvwprintw(win, 1, 2, "Nave %d", nave->id);
+    mvwprintw(win, 2, 2, "Posicion:    (%d, %d)", nave->x, nave->y);
+    mvwprintw(win, 3, 2, "Combustible: %d", nave->combustible);
+    mvwprintw(win, 4, 2, "Oxigeno:     %d", nave->oxigeno);
+
+    if (nave->activa) {
+        mvwprintw(win, 5, 2, "Estado:      ACTIVA");
     } else {
-    printf("  Estado:      DESACTIVADA\n");
+        mvwprintw(win, 5, 2, "Estado:      DESACTIVADA");
     }
-    printf("  Cargamento:\n");                                          //de aca para abajo falta 
-    printf("    Deuterio:   %d\n", nave->cargamento[IDX_DEUTERIO]);                 
-    printf("    Mutexio:    %d\n", nave->cargamento[IDX_MUTEXIO]);
-    printf("    Semaforita: %d\n", nave->cargamento[IDX_SEMAFORITA]);
-    printf("    Kernelio:   %d\n", nave->cargamento[IDX_KERNELIO]);
+
+    mvwprintw(win, 7, 2, "Cargamento:");
+    mvwprintw(win, 8, 4, "Deuterio:   %d", nave->cargamento[IDX_DEUTERIO]);
+    mvwprintw(win, 9, 4, "Mutexio:    %d", nave->cargamento[IDX_MUTEXIO]);
+    mvwprintw(win, 10, 4, "Semaforita: %d", nave->cargamento[IDX_SEMAFORITA]);
+    mvwprintw(win, 11, 4, "Kernelio:   %d", nave->cargamento[IDX_KERNELIO]);
+
+    wrefresh(win);
 }
 
-//mueve la nave
-int nave_mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa){
+int nave_mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa) {
     if (nave == NULL || !nave->activa) return 0; 
 
-    //Calcular nueva posicion tentativa
     int nueva_x = nave->x + dx;
     int nueva_y = nave->y + dy;
 
-    //Verificar que no se salga del mapa
-    if (nueva_x < 0 || nueva_x >= ancho_mapa){ 
-    return 0;
+    if (nueva_x < 1 || nueva_x >= ancho_mapa - 1) { 
+        return 0;
     }   
-    if (nueva_y < 0 || nueva_y >= alto_mapa){ 
+    if (nueva_y < 1 || nueva_y >= alto_mapa - 1) { 
         return 0;
     }
-    //si no tiene combustible,  no se mueve mas
+
     if (!nave_consumir_combustible(nave, COSTO_MOVIMIENTO)) {
         return 0;
     }
-    //sino
+
     nave->x = nueva_x;
     nave->y = nueva_y;
     return 1;
 }
 
-int nave_consumir_combustible(Nave *nave, int cantidad)
-{
-    if (nave == NULL || !nave->activa) {return 0;
+int nave_consumir_combustible(Nave *nave, int cantidad) {
+    if (nave == NULL || !nave->activa) {
+        return 0;
     }
     if (nave->combustible < cantidad) {
         nave->combustible = 0;
-        nave->activa = 0;  /* Sin combustible => desactivada */
+        nave->activa = 0;
         return 0;
     }
 
@@ -102,15 +203,13 @@ int nave_consumir_combustible(Nave *nave, int cantidad)
     return 1;
 }
 
-// issues #17... falta de oxigeno
-int nave_consumir_oxigeno(Nave *nave, int cantidad)
-{
+int nave_consumir_oxigeno(Nave *nave, int cantidad) {
     if (nave == NULL || !nave->activa) {
         return 0;
     }
     if (nave->oxigeno < cantidad) {
         nave->oxigeno = 0;
-        nave->activa = 0;  /* Sin oxigeno => desactivada */
+        nave->activa = 0;
         return 0;
     }
 
