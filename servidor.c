@@ -8,6 +8,7 @@
 #include <mqueue.h>
 #include <unistd.h>
 #include <time.h>
+#include <locale.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -24,9 +25,10 @@
 #define RECEIVER_MESSAGE_QUEUE "/servidor_receiver"
 // path de la memoria compartida
 #define SHM_MAP_PATH "/servidor_map_shm"
-#define ASTEROID_SYMBOL "*"   /* replace with your unicode: e.g. "🪨" */
+#define ASTEROID_SYMBOL '*'
 #define NUM_ASTEROIDS 10
 
+// lista de asteroides para guardar datos de recursos (con struct de asteroids.h)
 Asteroid asteroids[NUM_ASTEROIDS];
 
 // estructura de datos para el hilo receiver
@@ -42,13 +44,14 @@ typedef struct {
     char (*map)[WIN_WIDTH];
 } MapData;
 
-// declaración de funciones para tener los hilos abajo
+// declaración de funciones
 void *receive_mq(void *param);
 void *print_map(void *param);
 void place_asteroids(char map[][WIN_WIDTH]);
 
 int main(int argc, char *argv[])
 {
+    setlocale(LC_ALL, "");
     srand((unsigned int)time(NULL));
 
     // ventana principal
@@ -127,8 +130,7 @@ int main(int argc, char *argv[])
 
     /* Bucle */
     while(1) {
-        char ch = wgetch(win);
-        if (ch == 'Q') break;
+        wgetch(win);
     }
 
     // termina la ejecución del programa.
@@ -173,6 +175,7 @@ void *receive_mq(void *param) {
     return NULL;
 }
 
+// función para imprimir la pantalla constantemente
 void *print_map(void *param) {
     MapData *data = (MapData *)param;
 
@@ -191,35 +194,33 @@ void *print_map(void *param) {
     return NULL;
 }
 
-
-void place_asteroids(char map[][WIN_WIDTH])
-{
+// función para colocar en el mapa aleatoriamente asteroides
+void place_asteroids(char map[][WIN_WIDTH]) {
+    // itera para imprimir la cantidad de asteroides que se le indique (NUM_ASTEROIDS)
     int placed = 0;
-
     while (placed < NUM_ASTEROIDS) {
         int row = 1 + rand() % (WIN_HEIGHT - 2);
         int col = 1 + rand() % (WIN_WIDTH  - 2);
 
-        /* Skip if cell is not empty (collision check with station or other asteroid) */
-        if (map[row][col] != ' ')
-            continue;
+        // skip si la celda no está vacia (para colisión con asteroides o estaciones)
+        if (map[row][col] != ' ') continue;
 
-        /* Fill the struct */
+        // llena el struct de asteroide
         Asteroid *a = &asteroids[placed];
         a->row    = row;
         a->col    = col;
         a->active = 1;
 
-        /* Deuterio: always present */
-        a->deuterio = 20 + rand() % 31;        /* 20-50 */
+        // deuterio siempre presente (20-50)
+        a->deuterio = 20 + rand() % 31;
 
-        /* The other three minerals are optional (50% chance each) */
-        a->mutexio    = (rand() % 2) ? (5  + rand() % 6)  : 0;   /* 5-10  or 0 */
-        a->semaforita = (rand() % 2) ? (3  + rand() % 6)  : 0;   /* 3-8   or 0 */
-        a->kernelio   = (rand() % 2) ? (1  + rand() % 3)  : 0;   /* 1-3   or 0 */
+        // los otros tres minerales son opcionales (50% de probabilidad cada uno)
+        a->mutexio    = (rand() % 2) ? (5  + rand() % 6)  : 0;   // 5-10 o 0
+        a->semaforita = (rand() % 2) ? (3  + rand() % 6)  : 0;   // 3-8  o 0
+        a->kernelio   = (rand() % 2) ? (1  + rand() % 3)  : 0;   // 1-3  o 0
 
-        /* Paint the map */
-        map[row][col] = '*';   /* '*' = asteroid symbol, swap for unicode if needed */
+        // imprimir en el mapa
+        map[row][col] = ASTEROID_SYMBOL;
 
         placed++;
     }
