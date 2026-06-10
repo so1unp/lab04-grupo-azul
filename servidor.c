@@ -12,42 +12,53 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+// parámetros de pantalla
 #define WIN_WIDTH 90
 #define WIN_HEIGHT 30
+
 #define BUFF_SIZE 1024
 
+// msg queue receiver
 #define RECEIVER_MESSAGE_QUEUE "/servidor_receiver"
+// path de la memoria compartida
 #define SHM_MAP_PATH "/servidor_map_shm"
 
+// estructura de datos para el hilo receiver
 typedef struct {
     WINDOW *win;
     mqd_t receiver;
     char *buff;
 } ReceiverData;
 
+// estructura de datos para el hilo que dibuja todo el mapa
 typedef struct {
     WINDOW *win;
     char (*map)[WIN_WIDTH];
 } MapData;
 
+// declaración de funciones para tener los hilos abajo
 void *receive_mq(void *param);
 void *print_map(void *param);
 
 int main(int argc, char *argv[])
 {
-    srand(time(NULL));
+    srand((unsigned int)time(NULL));
 
+    // ventana principal
     WINDOW *win;
+
+    // hilos
     pthread_t t_receiver;
     pthread_t t_printer;
 
     char buff[BUFF_SIZE];
-    char input[BUFF_SIZE];
 
-    int shm_fd;
+    // tamaño del mapa
     size_t map_size = WIN_HEIGHT * WIN_WIDTH;
     char (*map)[WIN_WIDTH];
 
+    // shared memory file descriptor (intenta abrir y si no la crea, con posible error)
+    int shm_fd;
     shm_fd = shm_open(SHM_MAP_PATH, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
     if (shm_fd < 0) {
         perror("Error al crear la memoria compartida");
@@ -61,6 +72,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    // mapeo de memoria compartida al char map[][]
     map = mmap(NULL, map_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     if (map == MAP_FAILED) {
         perror("Error en mmap");
@@ -68,9 +80,10 @@ int main(int argc, char *argv[])
         shm_unlink(SHM_MAP_PATH);
         exit(1);
     }
-
+    // seteo todos los valores del mapa a espacios
     memset(map, ' ', map_size);
     
+    // message queue
     mqd_t receiver;
     if ((receiver = mq_open (RECEIVER_MESSAGE_QUEUE,  O_RDWR)) == -1) { 
         printf("No se puede acceder a la cola de mensajes %s", RECEIVER_MESSAGE_QUEUE); 
@@ -100,24 +113,25 @@ int main(int argc, char *argv[])
         .map = map
     };
 
+    // lanza los hilos
     pthread_create(&t_receiver, NULL, receive_mq, (void *)&receiver_data);
     pthread_create(&t_printer, NULL, print_map, (void *)&map_data);
 
     /* Bucle */
-    while(strcmp(input, "FIN") != 0) {
-        wmove(win, 1, 2);
-        box(win, 0, 0);
-        wgetstr(win, input);
+    while(1) {
+        char ch = wgetch(win);
+        if (ch == 'Q') break;
     }
 
-    // Termina la ejecución del programa.
+    // termina la ejecución del programa.
     werase(win);
     endwin();
+    // termina los hilos
     pthread_join(t_receiver, NULL);
     pthread_join(t_printer, NULL);
-
+    // cierro la msg queue
     mq_close(receiver);
-
+    // desaloque la memoria compartida
     munmap(map, map_size);
     close(shm_fd);
     shm_unlink(SHM_MAP_PATH);
@@ -125,6 +139,7 @@ int main(int argc, char *argv[])
     exit(EXIT_SUCCESS);
 }
 
+// función para recibir mensajes de la cola
 void *receive_mq(void *param) {
     ReceiverData *data = (ReceiverData *)param;
     unsigned int prio = 1;
@@ -162,7 +177,7 @@ void *print_map(void *param) {
         }
         box(data->win, 0, 0);
         wrefresh(data->win);
-        sleep(1);
+        usleep(100000);
     }
 
     return NULL;
