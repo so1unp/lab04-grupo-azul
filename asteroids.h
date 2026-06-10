@@ -5,8 +5,6 @@
 
 #include "config.h"   /* WIN_WIDTH is now defined before it's used */
 
-#define NUM_ASTEROIDS 10
-
 typedef struct {
     int row;
     int col;
@@ -17,7 +15,7 @@ typedef struct {
     int active;
 } Asteroid;
 
-extern Asteroid asteroids[NUM_ASTEROIDS];
+extern Asteroid asteroids_list[NUM_ASTEROIDS];
 
 void place_asteroids(char map[][WIN_WIDTH]);
 
