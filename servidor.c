@@ -15,10 +15,6 @@
 #include "asteroids.h"
 #include "config.h" 
 
-// parámetros de pantalla
-#define WIN_WIDTH 90
-#define WIN_HEIGHT 30
-
 #define BUFF_SIZE 1024
 
 // msg queue receiver
@@ -26,11 +22,10 @@
 // path de la memoria compartida
 #define SHM_MAP_PATH "/servidor_map_shm"
 #define ASTEROID_SYMBOL '*'
-#define NUM_ASTEROIDS 10
 
 // lista de asteroides para guardar datos de recursos (con struct de asteroids.h)
-Asteroid asteroids[NUM_ASTEROIDS];
-
+Asteroid asteroids_list[NUM_ASTEROIDS];
+ 
 // estructura de datos para el hilo receiver
 typedef struct {
     WINDOW *win;
@@ -206,7 +201,7 @@ void place_asteroids(char map[][WIN_WIDTH]) {
         if (map[row][col] != ' ') continue;
 
         // llena el struct de asteroide
-        Asteroid *a = &asteroids[placed];
+        Asteroid *a = &asteroids_list[placed];
         a->row    = row;
         a->col    = col;
         a->active = 1;
