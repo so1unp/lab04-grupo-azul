@@ -188,9 +188,9 @@ void *print_map(void *param) {
 
     return NULL;
 }
+    // función para colocar en el mapa aleatoriamente asteroides
 
-// función para colocar en el mapa aleatoriamente asteroides
-void place_asteroids(char map[][WIN_WIDTH]) {
+    void place_asteroids(char map[][WIN_WIDTH]) {
     // itera para imprimir la cantidad de asteroides que se le indique (NUM_ASTEROIDS)
     int placed = 0;
     while (placed < NUM_ASTEROIDS) {
@@ -206,17 +206,22 @@ void place_asteroids(char map[][WIN_WIDTH]) {
         a->col    = col;
         a->active = 1;
 
-        // deuterio siempre presente (20-50)
+        /* deuterio: siempre presente (20-50) */
         a->deuterio = 20 + rand() % 31;
 
-        // los otros tres minerales son opcionales (50% de probabilidad cada uno)
-        a->mutexio    = (rand() % 2) ? (5  + rand() % 6)  : 0;   // 5-10 o 0
-        a->semaforita = (rand() % 2) ? (3  + rand() % 6)  : 0;   // 3-8  o 0
-        a->kernelio   = (rand() % 2) ? (1  + rand() % 3)  : 0;   // 1-3  o 0
+        /* mutexio, semaforita, kernelio: 50% de probabilidad cada uno */
+        a->mutexio    = (rand() % 2) ? (5 + rand() % 6)  : 0;  /* 5-10 o 0 */
+        a->semaforita = (rand() % 2) ? (3 + rand() % 6)  : 0;  /* 3-8  o 0 */
+        a->kernelio   = (rand() % 2) ? (1 + rand() % 3)  : 0;  /* 1-3  o 0 */
+
+        /* minerales especiales: 20% de probabilidad cada uno (más difícil) */
+        a->oxigeno    = (rand() % 5 == 0) ? (1 + rand() % 5)  : 0;  /* 1-5  o 0 */
+        a->aleacion   = (rand() % 5 == 0) ? (1 + rand() % 3)  : 0;  /* 1-3  o 0 */
+        a->condimento = (rand() % 5 == 0) ? (1 + rand() % 4)  : 0;  /* 1-4  o 0 */
 
         // imprimir en el mapa
         map[row][col] = ASTEROID_SYMBOL;
-
         placed++;
     }
+
 }
