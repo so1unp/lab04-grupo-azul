@@ -4,6 +4,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -13,12 +14,18 @@
 #define WIN_HEIGHT 30
 #define SHM_MAP_PATH "/servidor_map_shm"
 
-Nave *nave_crear(int id, int x_inicial, int y_inicial);
-void nave_destruir(Nave *nave);
-void nave_mostrar_info(WINDOW *win, const Nave *nave);
-int nave_mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa);
-int nave_consumir_combustible(Nave *nave, int cantidad);
-int nave_consumir_oxigeno(Nave *nave, int cantidad);
+Nave *crear(int id, int x_inicial, int y_inicial);
+void destruir(Nave *nave);
+void mostrar_info(WINDOW *win, const Nave *nave);
+int mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa);
+int consumir_combustible(Nave *nave, int cantidad);
+void *consumir_oxigeno(void *param);
+
+typedef struct {
+    Nave *nave;
+    WINDOW *win;
+} nave_data;
+
 
 static void dibujar(WINDOW *map_win, WINDOW *info_win, char mapa[WIN_HEIGHT][WIN_WIDTH], const Nave *nave) {
     werase(map_win);
@@ -35,7 +42,7 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, char mapa[WIN_HEIGHT][WIN
     }
     wrefresh(map_win);
 
-    nave_mostrar_info(info_win, nave);
+    mostrar_info(info_win, nave);
 }
 
 int main(void) {
@@ -43,12 +50,16 @@ int main(void) {
     size_t map_size = WIN_HEIGHT * WIN_WIDTH;
     char (*mapa)[WIN_WIDTH];
 
+    pthread_t t_oxygen;
+
+    // File Descriptor de memoria compartida
     shm_fd = shm_open(SHM_MAP_PATH, O_RDWR, 0);
     if (shm_fd < 0) {
         perror("Error al acceder a la memoria compartida del servidor");
         return 1;
     }
 
+    // Mapea la memoria compartida con la del servidor
     mapa = mmap(NULL, map_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     if (mapa == MAP_FAILED) {
         perror("Error en mmap");
@@ -56,6 +67,7 @@ int main(void) {
         return 1;
     }
 
+    // Inicializa Ncurses
     initscr();
     cbreak();
     noecho();
@@ -65,14 +77,21 @@ int main(void) {
     WINDOW *map_win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
     WINDOW *info_win = newwin(14, 35, 0, WIN_WIDTH + 2);
 
-    Nave *nave = nave_crear(1, WIN_WIDTH / 2, WIN_HEIGHT / 2);
+    Nave *nave = crear(1, WIN_WIDTH / 2, WIN_HEIGHT / 2);
     if (nave == NULL) {
         endwin();
         munmap(mapa, map_size);
         close(shm_fd);
         fprintf(stderr, "Error: no se pudo crear la nave\n");
-        return 1;
+        exit(1);
     }
+
+    nave_data nave_data = {
+        .nave = nave,
+        .win = info_win
+    };
+
+    pthread_create(&t_oxygen, NULL, consumir_oxigeno, (void *)&nave_data);
 
     int salir = 0;
     while (!salir) {
@@ -91,9 +110,7 @@ int main(void) {
         }
 
         if ((dx != 0 || dy != 0) && nave->activa) {
-            if (nave_mover(nave, dx, dy, WIN_WIDTH, WIN_HEIGHT)) {
-                nave_consumir_oxigeno(nave, 1);
-            }
+            mover(nave, dx, dy, WIN_WIDTH, WIN_HEIGHT);
         }
     }
 
@@ -101,14 +118,15 @@ int main(void) {
     werase(info_win);
     endwin();
 
-    nave_destruir(nave);
+    destruir(nave);
     munmap(mapa, map_size);
     close(shm_fd);
 
+    pthread_join(t_oxygen, NULL);
     return 0;
 }
 
-Nave *nave_crear(int id, int x_inicial, int y_inicial) {
+Nave *crear(int id, int x_inicial, int y_inicial) {
     Nave *nave = malloc(sizeof(Nave));
     if (nave == NULL) {
         perror("malloc nave");
@@ -130,13 +148,13 @@ Nave *nave_crear(int id, int x_inicial, int y_inicial) {
     return nave;
 }
 
-void nave_destruir(Nave *nave) {
+void destruir(Nave *nave) {
     if (nave != NULL) {
         free(nave);
     }
 }
 
-void nave_mostrar_info(WINDOW *win, const Nave *nave) {
+void mostrar_info(WINDOW *win, const Nave *nave) {
     if (win == NULL || nave == NULL) {
         return;
     }
@@ -164,7 +182,7 @@ void nave_mostrar_info(WINDOW *win, const Nave *nave) {
     wrefresh(win);
 }
 
-int nave_mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa) {
+int mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa) {
     if (nave == NULL || !nave->activa) return 0; 
 
     int nueva_x = nave->x + dx;
@@ -177,7 +195,7 @@ int nave_mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa) {
         return 0;
     }
 
-    if (!nave_consumir_combustible(nave, COSTO_MOVIMIENTO)) {
+    if (!consumir_combustible(nave, COSTO_MOVIMIENTO)) {
         return 0;
     }
 
@@ -186,7 +204,7 @@ int nave_mover(Nave *nave, int dx, int dy, int ancho_mapa, int alto_mapa) {
     return 1;
 }
 
-int nave_consumir_combustible(Nave *nave, int cantidad) {
+int consumir_combustible(Nave *nave, int cantidad) {
     if (nave == NULL || !nave->activa) {
         return 0;
     }
@@ -203,19 +221,29 @@ int nave_consumir_combustible(Nave *nave, int cantidad) {
     return 1;
 }
 
-int nave_consumir_oxigeno(Nave *nave, int cantidad) {
-    if (nave == NULL || !nave->activa) {
-        return 0;
-    }
-    if (nave->oxigeno < cantidad) {
-        nave->oxigeno = 0;
-        nave->activa = 0;
-        return 0;
+void *consumir_oxigeno(void *param) {
+    nave_data *data = (nave_data *)param;
+    int cantidad = 1;
+
+    if (data->nave == NULL || !data->nave->activa) {
+        return NULL;
     }
 
-    nave->oxigeno -= cantidad;
-    if (nave->oxigeno == 0) {
-        nave->activa = 0;
+    while(data->nave->activa) {
+        sleep(1);
+        if (data->nave->oxigeno < cantidad) {
+            data->nave->oxigeno = 0;
+            data->nave->activa = 0;
+            return NULL;
+        }
+
+        data->nave->oxigeno -= cantidad;
+        wrefresh(data->win);
+
+        if (data->nave->oxigeno == 0) {
+            data->nave->activa = 0;
+        }
     }
-    return 1;
+
+    return NULL;
 }

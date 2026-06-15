@@ -31,13 +31,13 @@ typedef struct {
     WINDOW *win;
     mqd_t receiver;
     char *buff;
-} ReceiverData;
+} receiver_data;
 
 // estructura de datos para el hilo que dibuja todo el mapa
 typedef struct {
     WINDOW *win;
     char (*map)[WIN_WIDTH];
-} MapData;
+} map_data;
 
 // declaración de funciones
 void *receive_mq(void *param);
@@ -108,13 +108,13 @@ int main(int argc, char *argv[])
     box(win, 0, 0);
     wrefresh(win);
 
-    ReceiverData receiver_data = {
+    receiver_data receiver_data = {
         .win = win,
         .receiver = receiver,
         .buff = buff
     };
 
-    MapData map_data = {
+    map_data map_data = {
         .win = win,
         .map = map
     };
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 
 // función para recibir mensajes de la cola
 void *receive_mq(void *param) {
-    ReceiverData *data = (ReceiverData *)param;
+    receiver_data *data = (receiver_data *)param;
     unsigned int prio = 1;
     static int row = 1;
 
@@ -172,7 +172,7 @@ void *receive_mq(void *param) {
 
 // función para imprimir la pantalla constantemente
 void *print_map(void *param) {
-    MapData *data = (MapData *)param;
+    map_data *data = (map_data *)param;
 
     while(1) {
         for (int i = 0; i < WIN_HEIGHT; i++) {
