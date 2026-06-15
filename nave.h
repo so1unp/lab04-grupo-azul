@@ -21,15 +21,15 @@
 #define COSTO_MOVIMIENTO       1
 
 /* Estructura que representa una nave espacial minera */
-typedef struct { //defino la estructura de la nave
-    int  id;                        // identificador unica de la nave
-    int  x;                         // posicion X en el mapa 
-    int  y;                         // posicion Y en el mapa
-    int  combustible;               // deuterio en el tanque
-    int  oxigeno;                   // nivel de oxigeno
-    int  cargamento[NUM_RECURSOS];  // recursos almacenados
-    int  activa;                    // 1 = activa, 0 = desactivada (game over)
-    char simbolo;                   // caracter que la representa en el mapa
+typedef struct {
+    int  id;
+    int  x; 
+    int  y;
+    int  combustible;
+    int  oxigeno;
+    int  cargamento[NUM_RECURSOS];
+    int  activa;
+    char simbolo;
 } Nave;
 
-#endif // NAVE_H fin de nave.h
+#endif
