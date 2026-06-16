@@ -1,0 +1,1 @@
+gcc -o ./bin/$1 $1.c -g -Wall -Wextra -Wshadow -Wconversion -Wunreachable-code -lncurses -lpthread -lrt
