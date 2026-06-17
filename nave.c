@@ -11,9 +11,6 @@
 #include "nave.h"
 #include "config.h"
 
-#define RECEIVER_MESSAGE_QUEUE "/servidor_receiver"
-#define SHM_MAP_PATH "/servidor_map_shm"
-
 void mostrar_info(WINDOW *win, const Nave *nave);
 
 static void dibujar(WINDOW *map_win, WINDOW *info_win, EspacioCompartido *espacio_compartido, int my_id) {
@@ -32,7 +29,7 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, EspacioCompartido *espaci
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("Uso: %s <id_nave>\n", argv[0]);
+        printf("Uso: %s <id_nave> (0-%d)\n", argv[0], MAX_NAVES - 1);
         return 1;
     }
     int my_id = atoi(argv[1]);

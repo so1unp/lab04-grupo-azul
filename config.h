@@ -3,6 +3,10 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Nombres de las colas de mensajes y memoria compartida */
+#define RECEIVER_MESSAGE_QUEUE "/azul_servidor_receiver"
+#define SHM_MAP_PATH "/azul_servidor_map_shm"
+
 /* Parámetros pantalla */
 #define WIN_WIDTH 90
 #define WIN_HEIGHT 30

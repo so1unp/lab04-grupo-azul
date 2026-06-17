@@ -15,8 +15,6 @@
 #include "nave.h"
 
 #define BUFF_SIZE 1024
-#define RECEIVER_MESSAGE_QUEUE "/servidor_receiver"
-#define SHM_MAP_PATH "/servidor_map_shm"
 #define ASTEROID_SYMBOL '*'
 
 Asteroide asteroides[NUM_ASTEROIDS];
