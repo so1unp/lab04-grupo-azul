@@ -1,6 +1,7 @@
-/* ── asteroids.h ── */
 #ifndef ASTEROIDS_H
 #define ASTEROIDS_H
+
+#include <pthread.h>
 #include "config.h"
 
 typedef struct {
@@ -10,12 +11,14 @@ typedef struct {
     int mutexio;
     int semaforita;
     int kernelio;
-    int oxigeno; 
-    int aleacion; 
+    int oxigeno;
+    int aleacion;
     int condimento;
     int active;
+    pthread_mutex_t mutex;  /* un mutex por asteroide */
 } Asteroide;
 
 extern Asteroide asteroides[NUM_ASTEROIDS];
 void place_asteroids(char map[][WIN_WIDTH]);
-#endif /* ASTEROIDES_H */
+
+#endif /* ASTEROIDS_H */

@@ -34,8 +34,53 @@ void *receive_mq(void *param);
 void *print_map(void *param);
 void *loop_juego(void *param);
 void place_asteroids(char map[][WIN_WIDTH]);
-
 void manejo_nave(char tipo, int id, int arg1, int arg2);
+
+/* Busca el índice del asteroide en la posición (nx, ny). Retorna -1 si no lo encuentra */
+static int buscar_asteroide(int nx, int ny) {
+    for (int i = 0; i < NUM_ASTEROIDS; i++) {
+        if (asteroides[i].active &&
+            asteroides[i].col == nx &&
+            asteroides[i].row == ny)
+            return i;
+    }
+    return -1;
+}
+
+/* Extrae los minerales del asteroide y los guarda en el cargamento de la nave.
+   Lock solo sobre el asteroide tocado — otros asteroides siguen libres. */
+void extraer_asteroide(int nave_id, int nx, int ny) {
+    if (nave_id < 0 || nave_id >= MAX_NAVES)                              return;
+    if (!espacio_compartido->naves[nave_id].activa)                        return;
+    if (espacio_compartido->naves[nave_id].combustible < COSTO_EXTRACCION) return;
+
+    int idx = buscar_asteroide(nx, ny);
+    if (idx == -1) return;
+
+    Asteroide *a = &asteroides[idx];
+
+    pthread_mutex_lock(&a->mutex);
+
+    if (!a->active) {   /* otra nave llegó primero */
+        pthread_mutex_unlock(&a->mutex);
+        return;
+    }
+
+    espacio_compartido->naves[nave_id].combustible -= COSTO_EXTRACCION;
+
+    espacio_compartido->naves[nave_id].cargamento[IDX_DEUTERIO]   += a->deuterio;
+    espacio_compartido->naves[nave_id].cargamento[IDX_MUTEXIO]    += a->mutexio;
+    espacio_compartido->naves[nave_id].cargamento[IDX_SEMAFORITA] += a->semaforita;
+    espacio_compartido->naves[nave_id].cargamento[IDX_KERNELIO]   += a->kernelio;
+
+    a->deuterio   = 0;
+    a->mutexio    = 0;
+    a->semaforita = 0;
+    a->kernelio   = 0;
+    a->active     = 0;
+
+    pthread_mutex_unlock(&a->mutex);
+}
 
 int main(int argc, char *argv[]) {
     (void)argc;
@@ -72,25 +117,19 @@ int main(int argc, char *argv[]) {
 
     memset(espacio_compartido, 0, total_shm_size);
 
-    /* Inicializar mutex como PROCESS_SHARED para que nave.c también pueda usarlo */
-    pthread_mutexattr_t mattr;
-    pthread_mutexattr_init(&mattr);
-    pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED);
-    pthread_mutex_init(&espacio_compartido->mutex_extraccion, &mattr);
-    pthread_mutexattr_destroy(&mattr);
-
     for (int y = 0; y < WIN_HEIGHT; y++) {
         for (int x = 0; x < WIN_WIDTH; x++) {
             espacio_compartido->map[y][x] = ' ';
         }
     }
-    
+
+    /* Inicializa asteroides y sus mutexes individuales */
     place_asteroids(espacio_compartido->map);
-    
+
     mqd_t receiver;
     struct mq_attr attr;
-    attr.mq_flags = 0;
-    attr.mq_maxmsg = 10;
+    attr.mq_flags   = 0;
+    attr.mq_maxmsg  = 10;
     attr.mq_msgsize = BUFF_SIZE;
     attr.mq_curmsgs = 0;
 
@@ -111,9 +150,9 @@ int main(int argc, char *argv[]) {
     wrefresh(win);
 
     ReceiverData r_data = {
-        .win = win,
+        .win      = win,
         .receiver = receiver,
-        .buff = buff
+        .buff     = buff
     };
 
     MapData m_data = {
@@ -121,10 +160,10 @@ int main(int argc, char *argv[]) {
     };
 
     pthread_create(&t_receiver, NULL, receive_mq, (void *)&r_data);
-    pthread_create(&t_printer, NULL, print_map, (void *)&m_data);
-    pthread_create(&t_game, NULL, loop_juego, NULL);
+    pthread_create(&t_printer,  NULL, print_map,  (void *)&m_data);
+    pthread_create(&t_game,     NULL, loop_juego, NULL);
 
-    while(1) {
+    while (1) {
         int ch = wgetch(win);
         if (ch == 'q' || ch == 'Q') break;
         usleep(50000);
@@ -132,91 +171,49 @@ int main(int argc, char *argv[]) {
 
     werase(win);
     endwin();
-    
+
     pthread_cancel(t_receiver);
     pthread_cancel(t_printer);
     pthread_cancel(t_game);
-    
+
     pthread_join(t_receiver, NULL);
-    pthread_join(t_printer, NULL);
-    pthread_join(t_game, NULL);
-    
+    pthread_join(t_printer,  NULL);
+    pthread_join(t_game,     NULL);
+
     mq_close(receiver);
     mq_unlink(RECEIVER_MESSAGE_QUEUE);
+
+    /* Destruir mutex de cada asteroide */
+    for (int i = 0; i < NUM_ASTEROIDS; i++)
+        pthread_mutex_destroy(&asteroides[i].mutex);
+
     munmap(espacio_compartido, total_shm_size);
     close(shm_fd);
     shm_unlink(SHM_MAP_PATH);
-    pthread_mutex_destroy(&espacio_compartido->mutex_extraccion);
-    munmap(espacio_compartido, total_shm_size);
+
     exit(EXIT_SUCCESS);
-}
-
-/* Busca el índice del asteroide en la posición (nx, ny). Retorna -1 si no lo encuentra */
-static int buscar_asteroide(int nx, int ny) {
-    for (int i = 0; i < NUM_ASTEROIDS; i++) {
-        if (asteroides[i].active &&
-            asteroides[i].row == ny &&
-            asteroides[i].col == nx) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-/* Extrae los minerales del asteroide y los guarda en el cargamento de la nave */
-void extraer_asteroide(int nave_id, int nx, int ny) {
-    if (nave_id < 0 || nave_id >= MAX_NAVES) return;
-    if (!espacio_compartido->naves[nave_id].activa)  return;
-
-    if (espacio_compartido->naves[nave_id].combustible < COSTO_EXTRACCION) return;
-
-    int ast_idx = buscar_asteroide(nx, ny);
-    if (ast_idx == -1) return;
-
-    pthread_mutex_lock(&espacio_compartido->mutex_extraccion);
-
-    if (!asteroides[ast_idx].active) {
-        pthread_mutex_unlock(&espacio_compartido->mutex_extraccion);
-        return;
-    }
-
-    espacio_compartido->naves[nave_id].combustible -= COSTO_EXTRACCION;
-
-    /* Transferir minerales al cargamento */
-    espacio_compartido->naves[nave_id].cargamento[IDX_DEUTERIO]   += asteroides[ast_idx].deuterio;
-    espacio_compartido->naves[nave_id].cargamento[IDX_MUTEXIO]    += asteroides[ast_idx].mutexio;
-    espacio_compartido->naves[nave_id].cargamento[IDX_SEMAFORITA] += asteroides[ast_idx].semaforita;
-    espacio_compartido->naves[nave_id].cargamento[IDX_KERNELIO]   += asteroides[ast_idx].kernelio;
-
-    asteroides[ast_idx].active      = 0;
-    asteroides[ast_idx].deuterio    = 0;
-    asteroides[ast_idx].mutexio     = 0;
-    asteroides[ast_idx].semaforita  = 0;
-    asteroides[ast_idx].kernelio    = 0;
-
-    pthread_mutex_unlock(&espacio_compartido->mutex_extraccion);
 }
 
 void *receive_mq(void *param) {
     ReceiverData *data = (ReceiverData *)param;
     unsigned int prio = 1;
 
-    while(1) {
+    while (1) {
         memset(data->buff, 0, BUFF_SIZE);
 
         if (mq_receive(data->receiver, data->buff, BUFF_SIZE, &prio) == -1) {
             perror("Error al recibir el mensaje");
-            return NULL; 
+            return NULL;
         }
 
         char tipo, entidad;
         int id = 0, arg1 = 0, arg2 = 0;
-        
+
         if (sscanf(data->buff, "%c %c %d %d %d", &tipo, &entidad, &id, &arg1, &arg2) >= 2) {
             if (entidad == 'N') manejo_nave(tipo, id, arg1, arg2);
 
             if (entidad == 'E')
-                espacio_compartido->map[1 + rand() % (WIN_WIDTH - 1)][1 + rand() % (WIN_HEIGHT - 1)] = 'E';
+                espacio_compartido->map[1 + rand() % (WIN_HEIGHT - 2)][1 + rand() % (WIN_WIDTH - 2)] = 'E';
         }
     }
     return NULL;
@@ -225,7 +222,7 @@ void *receive_mq(void *param) {
 void *print_map(void *param) {
     MapData *data = (MapData *)param;
 
-    while(1) {
+    while (1) {
         for (int i = 0; i < WIN_HEIGHT; i++) {
             for (int i_x = 0; i_x < WIN_WIDTH; i_x++) {
                 wmove(data->win, i, i_x);
@@ -241,7 +238,7 @@ void *print_map(void *param) {
 
 void *loop_juego(void *param) {
     (void)param;
-    while(1) {
+    while (1) {
         sleep(1);
         for (int i = 0; i < MAX_NAVES; i++) {
             if (espacio_compartido->naves[i].activa) {
@@ -262,21 +259,23 @@ void place_asteroids(char map[][WIN_WIDTH]) {
     int placed = 0;
     while (placed < NUM_ASTEROIDS) {
         int row = 1 + rand() % (WIN_HEIGHT - 2);
-        int col = 1 + rand() % (WIN_WIDTH - 2);
+        int col = 1 + rand() % (WIN_WIDTH  - 2);
 
         if (map[row][col] != ' ') continue;
 
-        Asteroide *asteroide = &asteroides[placed];
-        asteroide->row = row;
-        asteroide->col = col;
-        asteroide->active = 1;
-        asteroide->deuterio = 20 + rand() % 31;
-        asteroide->mutexio = (rand() % 2) ? (5 + rand() % 6) : 0;
-        asteroide->semaforita = (rand() % 2) ? (3 + rand() % 6) : 0;
-        asteroide->kernelio = (rand() % 2) ? (1 + rand() % 3) : 0;
-        asteroide->oxigeno = (rand() % 5 == 0) ? (1 + rand() % 5) : 0;
-        asteroide->aleacion = (rand() % 5 == 0) ? (1 + rand() % 3) : 0;
-        asteroide->condimento = (rand() % 5 == 0) ? (1 + rand() % 4) : 0;
+        Asteroide *a = &asteroides[placed];
+        a->row        = row;
+        a->col        = col;
+        a->active     = 1;
+        a->deuterio   = 20 + rand() % 31;
+        a->mutexio    = (rand() % 2) ? (5 + rand() % 6) : 0;
+        a->semaforita = (rand() % 2) ? (3 + rand() % 6) : 0;
+        a->kernelio   = (rand() % 2) ? (1 + rand() % 3) : 0;
+        a->oxigeno    = (rand() % 5 == 0) ? (1 + rand() % 5) : 0;
+        a->aleacion   = (rand() % 5 == 0) ? (1 + rand() % 3) : 0;
+        a->condimento = (rand() % 5 == 0) ? (1 + rand() % 4) : 0;
+
+        pthread_mutex_init(&a->mutex, NULL); /* mutex independiente por asteroide */
 
         map[row][col] = ASTEROID_SYMBOL;
         placed++;
@@ -284,43 +283,43 @@ void place_asteroids(char map[][WIN_WIDTH]) {
 }
 
 void manejo_nave(char tipo, int id, int arg1, int arg2) {
-    if (id >= 0 && id < MAX_NAVES) {
-        if (tipo == 'I') {
-            if (!espacio_compartido->naves[id].activa) {
-                espacio_compartido->naves[id].id = id;
-                espacio_compartido->naves[id].x = WIN_WIDTH / 2;
-                espacio_compartido->naves[id].y = WIN_HEIGHT / 2;
-                espacio_compartido->naves[id].combustible = COMBUSTIBLE_INICIAL;
-                espacio_compartido->naves[id].oxigeno = OXIGENO_INICIAL;
-                espacio_compartido->naves[id].activa = 1;
-                espacio_compartido->naves[id].simbolo = 'N';
-                espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = 'N';
-            }
-        } 
-        else if (tipo == 'M' && espacio_compartido->naves[id].activa) {
-            int dx = arg1;
-            int dy = arg2;
-            int nx = espacio_compartido->naves[id].x + dx;
-            int ny = espacio_compartido->naves[id].y + dy;
+    if (id < 0 || id >= MAX_NAVES) return;
 
-            if (nx >= 1 && nx < WIN_WIDTH - 1 && ny >= 1 && ny < WIN_HEIGHT - 1) {
-                if (espacio_compartido->map[ny][nx] == ' ') {
-                    if (espacio_compartido->naves[id].combustible >= COSTO_MOVIMIENTO) {
-                        espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = ' ';
-                        espacio_compartido->naves[id].x = nx;
-                        espacio_compartido->naves[id].y = ny;
-                        espacio_compartido->naves[id].combustible -= COSTO_MOVIMIENTO;
-                        espacio_compartido->map[ny][nx] = 'N';
-                        if (espacio_compartido->naves[id].combustible == 0) {
-                            espacio_compartido->naves[id].activa = 0;
-                            espacio_compartido->map[ny][nx] = ' ';
-                        }
+    if (tipo == 'I') {
+        if (!espacio_compartido->naves[id].activa) {
+            espacio_compartido->naves[id].id          = id;
+            espacio_compartido->naves[id].x           = WIN_WIDTH  / 2;
+            espacio_compartido->naves[id].y           = WIN_HEIGHT / 2;
+            espacio_compartido->naves[id].combustible = COMBUSTIBLE_INICIAL;
+            espacio_compartido->naves[id].oxigeno     = OXIGENO_INICIAL;
+            espacio_compartido->naves[id].activa      = 1;
+            espacio_compartido->naves[id].simbolo     = 'N';
+            espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = 'N';
+        }
+    }
+    else if (tipo == 'M' && espacio_compartido->naves[id].activa) {
+        int dx = arg1;
+        int dy = arg2;
+        int nx = espacio_compartido->naves[id].x + dx;
+        int ny = espacio_compartido->naves[id].y + dy;
+
+        if (nx >= 1 && nx < WIN_WIDTH - 1 && ny >= 1 && ny < WIN_HEIGHT - 1) {
+            if (espacio_compartido->map[ny][nx] == ' ') {
+                if (espacio_compartido->naves[id].combustible >= COSTO_MOVIMIENTO) {
+                    espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = ' ';
+                    espacio_compartido->naves[id].x = nx;
+                    espacio_compartido->naves[id].y = ny;
+                    espacio_compartido->naves[id].combustible -= COSTO_MOVIMIENTO;
+                    espacio_compartido->map[ny][nx] = 'N';
+                    if (espacio_compartido->naves[id].combustible == 0) {
+                        espacio_compartido->naves[id].activa = 0;
+                        espacio_compartido->map[ny][nx] = ' ';
                     }
                 }
-                else if (espacio_compartido->map[ny][nx] == ASTEROID_SYMBOL) {
-                    /* La nave chocó con un asteroide → extraer sus minerales */
-                    extraer_asteroide(id, nx, ny);
-                }
+            }
+            else if (espacio_compartido->map[ny][nx] == ASTEROID_SYMBOL) {
+                /* La nave chocó con un asteroide → extraer sus minerales */
+                extraer_asteroide(id, nx, ny);
             }
         }
     }
