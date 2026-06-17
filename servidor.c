@@ -152,7 +152,7 @@ void *receive_mq(void *param) {
 
         if (mq_receive(data->receiver, data->buff, BUFF_SIZE, &prio) == -1) {
             perror("Error al recibir el mensaje");
-            return NULL;
+            return NULL; 
         }
 
         char tipo, entidad;
