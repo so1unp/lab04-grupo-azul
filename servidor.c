@@ -30,19 +30,12 @@ typedef struct {
     WINDOW *win;
 } MapData;
 
-/* ── Datos para el hilo de progreso ── */
-typedef struct {
-    int nave_id;
-    int asteroide_idx;
-} ExtraccionData;
-
-
 void *receive_mq(void *param);
 void *print_map(void *param);
 void *loop_juego(void *param);
 void place_asteroids(char map[][WIN_WIDTH]);
 
-void manejo_nave(char tipo, char entidad, int id, int arg1, int arg2);
+void manejo_nave(char tipo, int id, int arg1, int arg2);
 
 int main(int argc, char *argv[]) {
     (void)argc;
@@ -157,6 +150,7 @@ int main(int argc, char *argv[]) {
     munmap(espacio_compartido, total_shm_size);
     exit(EXIT_SUCCESS);
 }
+
 /* Busca el índice del asteroide en la posición (nx, ny). Retorna -1 si no lo encuentra */
 static int buscar_asteroide(int nx, int ny) {
     for (int i = 0; i < NUM_ASTEROIDS; i++) {
@@ -169,71 +163,23 @@ static int buscar_asteroide(int nx, int ny) {
     return -1;
 }
 
-/* Hilo que muestra barra de progreso durante la extracción */
-void *hilo_progreso(void *param) {
-    ExtraccionData *ed = (ExtraccionData *)param;
-    int nave_id       = ed->nave_id;
-    int ast_idx       = ed->asteroide_idx;
-    free(ed);
-
-    /* Ventana flotante de progreso (centrada) */
-    int h = 6, w = 40;
-    int start_y = (WIN_HEIGHT - h) / 2;
-    int start_x = (WIN_WIDTH  - w) / 2;
-    WINDOW *prog_win = newwin(h, w, start_y, start_x);
-
-    int pasos = 20;          /* 20 pasos × 100 ms = 2 segundos de animación */
-    for (int p = 0; p <= pasos; p++) {
-        werase(prog_win);
-        box(prog_win, 0, 0);
-        mvwprintw(prog_win, 1, 2, "Nave %d — Extrayendo asteroide...", nave_id);
-
-        /* Barra [####......] */
-        int barra_w = w - 6;
-        int lleno    = (p * barra_w) / pasos;
-        mvwprintw(prog_win, 3, 2, "[");
-        for (int b = 0; b < barra_w; b++)
-            wprintw(prog_win, "%c", b < lleno ? '#' : '.');
-        wprintw(prog_win, "] %3d%%", (p * 100) / pasos);
-
-        mvwprintw(prog_win, 4, 2, "Ast[%d]  D:%d M:%d S:%d K:%d",
-                  ast_idx,
-                  asteroides[ast_idx].deuterio,
-                  asteroides[ast_idx].mutexio,
-                  asteroides[ast_idx].semaforita,
-                  asteroides[ast_idx].kernelio);
-
-        wrefresh(prog_win);
-        usleep(100000); /* 100 ms por paso */
-    }
-
-    werase(prog_win);
-    wrefresh(prog_win);
-    delwin(prog_win);
-    return NULL;
-}
-
 /* Extrae los minerales del asteroide y los guarda en el cargamento de la nave */
 void extraer_asteroide(int nave_id, int nx, int ny) {
     if (nave_id < 0 || nave_id >= MAX_NAVES) return;
     if (!espacio_compartido->naves[nave_id].activa)  return;
 
-    /* ── Costo de combustible ── */
     if (espacio_compartido->naves[nave_id].combustible < COSTO_EXTRACCION) return;
 
     int ast_idx = buscar_asteroide(nx, ny);
-    if (ast_idx == -1) return; /* no hay asteroide aquí */
+    if (ast_idx == -1) return;
 
-    /* ── Sección crítica ── */
     pthread_mutex_lock(&espacio_compartido->mutex_extraccion);
 
-    /* Doble-check dentro del mutex */
     if (!asteroides[ast_idx].active) {
         pthread_mutex_unlock(&espacio_compartido->mutex_extraccion);
         return;
     }
 
-    /* Gastar combustible */
     espacio_compartido->naves[nave_id].combustible -= COSTO_EXTRACCION;
 
     /* Transferir minerales al cargamento */
@@ -242,25 +188,15 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
     espacio_compartido->naves[nave_id].cargamento[IDX_SEMAFORITA] += asteroides[ast_idx].semaforita;
     espacio_compartido->naves[nave_id].cargamento[IDX_KERNELIO]   += asteroides[ast_idx].kernelio;
 
-    /* Marcar asteroide como extraído y limpiar el mapa */
     asteroides[ast_idx].active      = 0;
     asteroides[ast_idx].deuterio    = 0;
     asteroides[ast_idx].mutexio     = 0;
     asteroides[ast_idx].semaforita  = 0;
     asteroides[ast_idx].kernelio    = 0;
-    espacio_compartido->map[ny][nx] = ' ';
 
     pthread_mutex_unlock(&espacio_compartido->mutex_extraccion);
-
-    /* ── Lanzar hilo de progreso (no bloquea receive_mq) ── */
-    ExtraccionData *ed = malloc(sizeof(ExtraccionData));
-    ed->nave_id       = nave_id;
-    ed->asteroide_idx = ast_idx;
-
-    pthread_t t_prog;
-    pthread_create(&t_prog, NULL, hilo_progreso, (void *)ed);
-    pthread_detach(t_prog); /* se limpia solo al terminar */
 }
+
 void *receive_mq(void *param) {
     ReceiverData *data = (ReceiverData *)param;
     unsigned int prio = 1;
@@ -277,7 +213,7 @@ void *receive_mq(void *param) {
         int id = 0, arg1 = 0, arg2 = 0;
         
         if (sscanf(data->buff, "%c %c %d %d %d", &tipo, &entidad, &id, &arg1, &arg2) >= 2) {
-            if (entidad == 'N') manejo_nave(tipo, entidad, id, arg1, arg2);
+            if (entidad == 'N') manejo_nave(tipo, id, arg1, arg2);
 
             if (entidad == 'E')
                 espacio_compartido->map[1 + rand() % (WIN_WIDTH - 1)][1 + rand() % (WIN_HEIGHT - 1)] = 'E';
@@ -347,7 +283,7 @@ void place_asteroids(char map[][WIN_WIDTH]) {
     }
 }
 
-void manejo_nave(char tipo, char entidad, int id, int arg1, int arg2) {
+void manejo_nave(char tipo, int id, int arg1, int arg2) {
     if (id >= 0 && id < MAX_NAVES) {
         if (tipo == 'I') {
             if (!espacio_compartido->naves[id].activa) {
