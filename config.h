@@ -25,10 +25,12 @@
 #define price_kernelio 55
 
 #define price_oxigeno 20
+#define COSTO_EXTRACCION  5
 
 typedef struct {
     char map[WIN_HEIGHT][WIN_WIDTH];
     Nave naves[MAX_NAVES];
+    pthread_mutex_t  mutex_extraccion;
 } EspacioCompartido;
 
 #endif /* CONFIG_H */
