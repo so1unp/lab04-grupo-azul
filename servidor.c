@@ -35,6 +35,8 @@ void *print_map(void *param);
 void *loop_juego(void *param);
 void place_asteroids(char map[][WIN_WIDTH]);
 
+void manejo_nave(char tipo, char entidad, int id, int arg1, int arg2);
+
 int main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
@@ -153,46 +155,14 @@ void *receive_mq(void *param) {
             return NULL;
         }
 
-        char tipo;
+        char tipo, entidad;
         int id = 0, arg1 = 0, arg2 = 0;
         
-        if (sscanf(data->buff, "%c %d %d %d", &tipo, &id, &arg1, &arg2) >= 2) {
-            if (id >= 0 && id < MAX_NAVES) {
-                if (tipo == 'I') {
-                    if (!espacio_compartido->naves[id].activa) {
-                        espacio_compartido->naves[id].id = id;
-                        espacio_compartido->naves[id].x = WIN_WIDTH / 2;
-                        espacio_compartido->naves[id].y = WIN_HEIGHT / 2;
-                        espacio_compartido->naves[id].combustible = COMBUSTIBLE_INICIAL;
-                        espacio_compartido->naves[id].oxigeno = OXIGENO_INICIAL;
-                        espacio_compartido->naves[id].activa = 1;
-                        espacio_compartido->naves[id].simbolo = 'N';
-                        espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = 'N';
-                    }
-                } 
-                else if (tipo == 'M' && espacio_compartido->naves[id].activa) {
-                    int dx = arg1;
-                    int dy = arg2;
-                    int nx = espacio_compartido->naves[id].x + dx;
-                    int ny = espacio_compartido->naves[id].y + dy;
+        if (sscanf(data->buff, "%c %c %d %d %d", &tipo, &entidad, &id, &arg1, &arg2) >= 2) {
+            if (entidad == 'N') manejo_nave(tipo, entidad, id, arg1, arg2);
 
-                    if (nx >= 1 && nx < WIN_WIDTH - 1 && ny >= 1 && ny < WIN_HEIGHT - 1) {
-                        if (espacio_compartido->map[ny][nx] == ' ') {
-                            if (espacio_compartido->naves[id].combustible >= COSTO_MOVIMIENTO) {
-                                espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = ' ';
-                                espacio_compartido->naves[id].x = nx;
-                                espacio_compartido->naves[id].y = ny;
-                                espacio_compartido->naves[id].combustible -= COSTO_MOVIMIENTO;
-                                espacio_compartido->map[ny][nx] = 'N';
-                                if (espacio_compartido->naves[id].combustible == 0) {
-                                    espacio_compartido->naves[id].activa = 0;
-                                    espacio_compartido->map[ny][nx] = ' ';
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            if (entidad == 'E')
+                espacio_compartido->map[1 + rand() % (WIN_WIDTH - 1)][1 + rand() % (WIN_HEIGHT - 1)] = 'E';
         }
     }
     return NULL;
@@ -256,5 +226,44 @@ void place_asteroids(char map[][WIN_WIDTH]) {
 
         map[row][col] = ASTEROID_SYMBOL;
         placed++;
+    }
+}
+
+void manejo_nave(char tipo, char entidad, int id, int arg1, int arg2) {
+    if (id >= 0 && id < MAX_NAVES) {
+        if (tipo == 'I') {
+            if (!espacio_compartido->naves[id].activa) {
+                espacio_compartido->naves[id].id = id;
+                espacio_compartido->naves[id].x = WIN_WIDTH / 2;
+                espacio_compartido->naves[id].y = WIN_HEIGHT / 2;
+                espacio_compartido->naves[id].combustible = COMBUSTIBLE_INICIAL;
+                espacio_compartido->naves[id].oxigeno = OXIGENO_INICIAL;
+                espacio_compartido->naves[id].activa = 1;
+                espacio_compartido->naves[id].simbolo = 'N';
+                espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = 'N';
+            }
+        } 
+        else if (tipo == 'M' && espacio_compartido->naves[id].activa) {
+            int dx = arg1;
+            int dy = arg2;
+            int nx = espacio_compartido->naves[id].x + dx;
+            int ny = espacio_compartido->naves[id].y + dy;
+
+            if (nx >= 1 && nx < WIN_WIDTH - 1 && ny >= 1 && ny < WIN_HEIGHT - 1) {
+                if (espacio_compartido->map[ny][nx] == ' ') {
+                    if (espacio_compartido->naves[id].combustible >= COSTO_MOVIMIENTO) {
+                        espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = ' ';
+                        espacio_compartido->naves[id].x = nx;
+                        espacio_compartido->naves[id].y = ny;
+                        espacio_compartido->naves[id].combustible -= COSTO_MOVIMIENTO;
+                        espacio_compartido->map[ny][nx] = 'N';
+                        if (espacio_compartido->naves[id].combustible == 0) {
+                            espacio_compartido->naves[id].activa = 0;
+                            espacio_compartido->map[ny][nx] = ' ';
+                        }
+                    }
+                }
+            }
+        }
     }
 }
