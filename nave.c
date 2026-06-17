@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
     }
 
     char msg[128];
-    sprintf(msg, "I %d", my_id);
+    sprintf(msg, "I N %d", my_id);
     mq_send(sender, msg, strlen(msg), 0);
 
     initscr();
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
         }
 
         if ((dx != 0 || dy != 0) && espacio_compartido->naves[my_id].activa) {
-            sprintf(msg, "M %d %d %d", my_id, dx, dy);
+            sprintf(msg, "M N %d %d %d", my_id, dx, dy);
             mq_send(sender, msg, strlen(msg), 0);
         }
     }
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
     munmap(espacio_compartido, total_shm_size);
     close(shm_fd);
 
-    return 0;
+    exit(EXIT_SUCCESS);
 }
 
 void mostrar_info(WINDOW *win, const Nave *nave) {
