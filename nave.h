@@ -30,6 +30,7 @@ typedef struct {
     int  cargamento[NUM_RECURSOS];
     int  activa;
     char simbolo;
+    pthread_mutex_t mutex;  /* un mutex por nave */
 } Nave;
 
 #endif

@@ -47,8 +47,18 @@ static int buscar_asteroide(int nx, int ny) {
     return -1;
 }
 
+/* Busca el índice de la nave en la posición (nx, ny). Retorna -1 si no lo encuentra */
+static int buscar_nave(int nx, int ny) {
+    for (int i = 0; i < MAX_NAVES; i++) {
+        if (espacio_compartido->naves[i].x == nx &&
+            espacio_compartido->naves[i].y == ny)
+            return i;
+    }
+    return -1;
+}
+
 /* Extrae los minerales del asteroide y los guarda en el cargamento de la nave.
-   Lock solo sobre el asteroide tocado — otros asteroides siguen libres. */
+   Lock solo sobre el asteroide tocado, otros asteroides siguen libres. */
 void extraer_asteroide(int nave_id, int nx, int ny) {
     if (nave_id < 0 || nave_id >= MAX_NAVES)                              return;
     if (!espacio_compartido->naves[nave_id].activa)                        return;
@@ -80,6 +90,39 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
     a->active     = 0;
 
     pthread_mutex_unlock(&a->mutex);
+}
+
+/* Extrae los recursos de una nave muerta.
+   Lock solo sobre la nave tocada */
+void extraer_nave_muerta(int nave_id, int nx, int ny) {
+    if (nave_id < 0 || nave_id >= MAX_NAVES)                              return;
+    if (!espacio_compartido->naves[nave_id].activa)                        return;
+    if (espacio_compartido->naves[nave_id].combustible < COSTO_EXTRACCION) return;
+
+    int idx = buscar_nave(nx, ny);
+    if (idx == -1) return;
+
+    Nave *n = &espacio_compartido->naves[idx];
+
+    pthread_mutex_lock(&n->mutex);
+
+    espacio_compartido->naves[nave_id].combustible -= COSTO_EXTRACCION;
+
+    espacio_compartido->naves[nave_id].combustible += n->combustible;
+    espacio_compartido->naves[nave_id].oxigeno += n->oxigeno;
+    espacio_compartido->naves[nave_id].cargamento[IDX_DEUTERIO]   += n->cargamento[IDX_DEUTERIO];
+    espacio_compartido->naves[nave_id].cargamento[IDX_MUTEXIO]    += n->cargamento[IDX_MUTEXIO];
+    espacio_compartido->naves[nave_id].cargamento[IDX_SEMAFORITA] += n->cargamento[IDX_SEMAFORITA];
+    espacio_compartido->naves[nave_id].cargamento[IDX_KERNELIO]   += n->cargamento[IDX_KERNELIO];
+
+    n->combustible = 0;
+    n->oxigeno = 0;
+    n->cargamento[IDX_DEUTERIO]   = 0;
+    n->cargamento[IDX_MUTEXIO]    = 0;
+    n->cargamento[IDX_SEMAFORITA] = 0;
+    n->cargamento[IDX_KERNELIO]   = 0;
+
+    pthread_mutex_unlock(&n->mutex);
 }
 
 int main(int argc, char *argv[]) {
@@ -246,7 +289,7 @@ void *loop_juego(void *param) {
                     espacio_compartido->naves[i].oxigeno--;
                     if (espacio_compartido->naves[i].oxigeno == 0) {
                         espacio_compartido->naves[i].activa = 0;
-                        espacio_compartido->map[espacio_compartido->naves[i].y][espacio_compartido->naves[i].x] = ' ';
+                        espacio_compartido->map[espacio_compartido->naves[i].y][espacio_compartido->naves[i].x] = 'X';
                     }
                 }
             }
@@ -294,6 +337,8 @@ void manejo_nave(char tipo, int id, int arg1, int arg2) {
             espacio_compartido->naves[id].oxigeno     = OXIGENO_INICIAL;
             espacio_compartido->naves[id].activa      = 1;
             espacio_compartido->naves[id].simbolo     = 'N';
+            pthread_mutex_init(&espacio_compartido->naves[id].mutex, NULL); /* mutex independiente por nave */
+
             espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = 'N';
         }
     }
@@ -313,13 +358,17 @@ void manejo_nave(char tipo, int id, int arg1, int arg2) {
                     espacio_compartido->map[ny][nx] = 'N';
                     if (espacio_compartido->naves[id].combustible == 0) {
                         espacio_compartido->naves[id].activa = 0;
-                        espacio_compartido->map[ny][nx] = ' ';
+                        espacio_compartido->map[ny][nx] = 'X';
                     }
                 }
             }
             else if (espacio_compartido->map[ny][nx] == ASTEROID_SYMBOL) {
-                /* La nave chocó con un asteroide → extraer sus minerales */
+                /* La nave chocó con un asteroide, extrae sus minerales */
                 extraer_asteroide(id, nx, ny);
+            }
+            else if (espacio_compartido->map[ny][nx] == 'X') {
+                /* La nave chocó con una nave muerta, extrae sus minerales */
+                extraer_nave_muerta(id, nx, ny);
             }
         }
     }
