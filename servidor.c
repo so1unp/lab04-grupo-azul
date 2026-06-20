@@ -16,9 +16,13 @@
 
 #define BUFF_SIZE 1024
 #define ASTEROID_SYMBOL '*'
+#define LOG_FILE "log.txt"
 
 Asteroide asteroides[NUM_ASTEROIDS];
 EspacioCompartido *espacio_compartido;
+
+// Mutex global para el log.txt
+pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct {
     WINDOW *win;
@@ -35,6 +39,9 @@ void *print_map(void *param);
 void *loop_juego(void *param);
 void place_asteroids(char map[][WIN_WIDTH]);
 void manejo_nave(char tipo, int id, int arg1, int arg2);
+
+static void log_transaccion_asteroide(int nave_id, int ast_id, int deut, int mut, int sem, int ker);
+static void log_transaccion_nave(int nave_id, int muerta_id, int deut, int mut, int sem, int ker, int comb, int ox);
 
 /* Busca el índice del asteroide en la posición (nx, ny). Retorna -1 si no lo encuentra */
 static int buscar_asteroide(int nx, int ny) {
@@ -76,12 +83,17 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
         return;
     }
 
+    int d = a->deuterio;
+    int m = a->mutexio;
+    int s = a->semaforita;
+    int k = a->kernelio;
+
     espacio_compartido->naves[nave_id].combustible -= COSTO_EXTRACCION;
 
-    espacio_compartido->naves[nave_id].cargamento[IDX_DEUTERIO]   += a->deuterio;
-    espacio_compartido->naves[nave_id].cargamento[IDX_MUTEXIO]    += a->mutexio;
-    espacio_compartido->naves[nave_id].cargamento[IDX_SEMAFORITA] += a->semaforita;
-    espacio_compartido->naves[nave_id].cargamento[IDX_KERNELIO]   += a->kernelio;
+    espacio_compartido->naves[nave_id].cargamento[IDX_DEUTERIO]   += d;
+    espacio_compartido->naves[nave_id].cargamento[IDX_MUTEXIO]    += m;
+    espacio_compartido->naves[nave_id].cargamento[IDX_SEMAFORITA] += s;
+    espacio_compartido->naves[nave_id].cargamento[IDX_KERNELIO]   += k;
 
     a->deuterio   = 0;
     a->mutexio    = 0;
@@ -90,6 +102,8 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
     a->active     = 0;
 
     pthread_mutex_unlock(&a->mutex);
+
+    log_transaccion_asteroide(nave_id, idx, d, m, s, k);
 }
 
 /* Extrae los recursos de una nave muerta.
@@ -106,14 +120,21 @@ void extraer_nave_muerta(int nave_id, int nx, int ny) {
 
     pthread_mutex_lock(&n->mutex);
 
+    int d = n->cargamento[IDX_DEUTERIO];
+    int m = n->cargamento[IDX_MUTEXIO];
+    int s = n->cargamento[IDX_SEMAFORITA];
+    int k = n->cargamento[IDX_KERNELIO];
+    int c_extra = n->combustible;
+    int o_extra = n->oxigeno;
+
     espacio_compartido->naves[nave_id].combustible -= COSTO_EXTRACCION;
 
-    espacio_compartido->naves[nave_id].combustible += n->combustible;
-    espacio_compartido->naves[nave_id].oxigeno += n->oxigeno;
-    espacio_compartido->naves[nave_id].cargamento[IDX_DEUTERIO]   += n->cargamento[IDX_DEUTERIO];
-    espacio_compartido->naves[nave_id].cargamento[IDX_MUTEXIO]    += n->cargamento[IDX_MUTEXIO];
-    espacio_compartido->naves[nave_id].cargamento[IDX_SEMAFORITA] += n->cargamento[IDX_SEMAFORITA];
-    espacio_compartido->naves[nave_id].cargamento[IDX_KERNELIO]   += n->cargamento[IDX_KERNELIO];
+    espacio_compartido->naves[nave_id].combustible += c_extra;
+    espacio_compartido->naves[nave_id].oxigeno += o_extra;
+    espacio_compartido->naves[nave_id].cargamento[IDX_DEUTERIO]   += d;
+    espacio_compartido->naves[nave_id].cargamento[IDX_MUTEXIO]    += m;
+    espacio_compartido->naves[nave_id].cargamento[IDX_SEMAFORITA] += s;
+    espacio_compartido->naves[nave_id].cargamento[IDX_KERNELIO]   += k;
 
     n->combustible = 0;
     n->oxigeno = 0;
@@ -123,6 +144,8 @@ void extraer_nave_muerta(int nave_id, int nx, int ny) {
     n->cargamento[IDX_KERNELIO]   = 0;
 
     pthread_mutex_unlock(&n->mutex);
+
+    log_transaccion_nave(nave_id, idx, d, m, s, k, c_extra, o_extra);
 }
 
 int main(int argc, char *argv[]) {
@@ -226,9 +249,11 @@ int main(int argc, char *argv[]) {
     mq_close(receiver);
     mq_unlink(RECEIVER_MESSAGE_QUEUE);
 
-    /* Destruir mutex de cada asteroide */
-    for (int i = 0; i < NUM_ASTEROIDS; i++)
+    /* Destruir mutexs */
+    for (int i = 0; i < NUM_ASTEROIDS; i++) {
         pthread_mutex_destroy(&asteroides[i].mutex);
+    }
+    pthread_mutex_destroy(&log_mutex);
 
     munmap(espacio_compartido, total_shm_size);
     close(shm_fd);
@@ -372,4 +397,36 @@ void manejo_nave(char tipo, int id, int arg1, int arg2) {
             }
         }
     }
+}
+
+static void log_transaccion_asteroide(int nave_id, int ast_id, int deut, int mut, int sem, int ker) {
+    pthread_mutex_lock(&log_mutex);
+    FILE *f = fopen(LOG_FILE, "a");
+    if (f != NULL) {
+        time_t ahora = time(NULL);
+        struct tm *t_info = localtime(&ahora);
+        char timestamp[20];
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t_info);
+
+        fprintf(f, "[%s] Extraccion Asteroide: Nave %d recolecto de Asteroide %d: Deuterio: %d, Mutexio: %d, Semaforita: %d, Kernelio: %d\n",
+                timestamp, nave_id, ast_id, deut, mut, sem, ker);
+        fclose(f);
+    }
+    pthread_mutex_unlock(&log_mutex);
+}
+
+static void log_transaccion_nave(int nave_id, int muerta_id, int deut, int mut, int sem, int ker, int comb, int ox) {
+    pthread_mutex_lock(&log_mutex);
+    FILE *f = fopen(LOG_FILE, "a");
+    if (f != NULL) {
+        time_t ahora = time(NULL);
+        struct tm *t_info = localtime(&ahora);
+        char timestamp[20];
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t_info);
+
+        fprintf(f, "[%s] Extraccion Nave Muerta: Nave %d saqueo a Nave Muerta %d: Deuterio: %d, Mutexio: %d, Semaforita: %d, Kernelio: %d, Combustible: %d, Oxigeno: %d\n",
+                timestamp, nave_id, muerta_id, deut, mut, sem, ker, comb, ox);
+        fclose(f);
+    }
+    pthread_mutex_unlock(&log_mutex);
 }
