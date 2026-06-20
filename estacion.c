@@ -21,6 +21,7 @@ static void dibujar(WINDOW *map_win, EspacioCompartido *espacio_compartido, int 
         }
     }
     wrefresh(map_win);
+
 }
 
 int main(int argc, char *argv[]) {
@@ -79,6 +80,7 @@ int main(int argc, char *argv[]) {
         int tecla = wgetch(map_win);
         
         if (tecla == 'q' || tecla == 'Q') break;
+        
     }
 
     werase(map_win);

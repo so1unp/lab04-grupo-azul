@@ -304,7 +304,8 @@ void place_asteroids(char map[][WIN_WIDTH]) {
         int row = 1 + rand() % (WIN_HEIGHT - 2);
         int col = 1 + rand() % (WIN_WIDTH  - 2);
 
-        if (map[row][col] != ' '&& map[row][col] != [WIN_WIDTH  / 2][WIN_HEIGHT / 2]) continue;
+        if (map[row][col] != ' ' || (row == WIN_HEIGHT / 2 && col == WIN_WIDTH / 2)) continue;
+       
 
         Asteroide *a = &asteroides[placed];
         a->row        = row;
