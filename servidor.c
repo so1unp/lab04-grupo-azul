@@ -102,6 +102,9 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
     a->semaforita = 0;
     a->kernelio   = 0;
     a->active     = 0;
+    
+    //posible modificacion del mapa para eliminar el asteroide
+        espacio_compartido->map[a->row][a->col] = ' ';
 
     pthread_mutex_unlock(&a->mutex);
 }
