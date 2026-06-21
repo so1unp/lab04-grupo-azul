@@ -9,11 +9,11 @@
 #define IDX_MUTEXIO     1
 #define IDX_SEMAFORITA  2
 #define IDX_KERNELIO    3
+#define HANGAR 3
 
-
-#define COMBUSTIBLE_INICIAL  0
-#define OXIGENO_INICIAL      100
-#define CONSUMO_OXIGENO      1
+#define COMBUSTIBLE_INICIAL  100
+#define OXIGENO_INICIAL      50
+#define BILLETERA_INICIAL   0
 
 typedef struct {
     int  id;
@@ -24,7 +24,10 @@ typedef struct {
     int  cargamento[NUM_RECURSOS];
     int  activa;
     char simbolo;
+    int hangar;
+    int billetera;
     pthread_mutex_t mutex;  /* un mutex por estacion */
+    
 } Estacion;
 
 #endif

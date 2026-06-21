@@ -18,7 +18,7 @@
 
 #define COMBUSTIBLE_INICIAL  100
 #define OXIGENO_INICIAL      100
-#define COSTO_MOVIMIENTO       1
+#define ESCUDO_INICIAL       50
 
 /* Estructura que representa una nave espacial minera */
 typedef struct {
@@ -28,6 +28,7 @@ typedef struct {
     int  combustible;
     int  oxigeno;
     int  cargamento[NUM_RECURSOS];
+    int  escudo;
     int  activa;
     char simbolo;
     pthread_mutex_t mutex;  /* un mutex por nave */

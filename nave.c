@@ -134,6 +134,6 @@ void mostrar_info(WINDOW *win, const Nave *nave) {
     mvwprintw(win, 9, 4, "Mutexio:    %d", nave->cargamento[IDX_MUTEXIO]);
     mvwprintw(win, 10, 4, "Semaforita: %d", nave->cargamento[IDX_SEMAFORITA]);
     mvwprintw(win, 11, 4, "Kernelio:   %d", nave->cargamento[IDX_KERNELIO]);
-
+    
     wrefresh(win);
 }
