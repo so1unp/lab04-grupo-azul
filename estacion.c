@@ -120,7 +120,7 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
     }
 
     mvwprintw(win, 7, 2, "Para vender sus recursos presione 'v' :");
-    mvwprintw(win, 8, 4, "Deuterio:   %d", price_deuterio);
+    mvwprintw(win, 8, 4, "Cambie Deuterio por Combustible");
     mvwprintw(win, 9, 4, "Mutexio:    %d", price_mutexio);
     mvwprintw(win, 10, 4, "Semaforita: %d", price_semaforita);
     mvwprintw(win, 11, 4, "Kernelio:   %d", price_kernelio);

@@ -28,7 +28,7 @@
 
 
 
-
+#define COSTO_MOVIMIENTO 1
 #define COSTO_EXTRACCION 5
 
 typedef struct {

@@ -12,7 +12,7 @@
 #define HANGAR 3
 
 #define COMBUSTIBLE_INICIAL  100
-#define OXIGENO_INICIAL      50
+#define OXIGENO_INICIAL_ESTACION      50
 #define BILLETERA_INICIAL   0
 
 typedef struct {
