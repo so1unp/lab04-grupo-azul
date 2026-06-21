@@ -33,6 +33,8 @@ typedef struct {
 void *receive_mq(void *param);
 void *print_map(void *param);
 void *loop_juego(void *param);
+void *loop_estacion(void *param);
+//void *loop_compras(void *param);
 void place_asteroids(char map[][WIN_WIDTH]);
 void manejo_nave(char tipo, int id, int arg1, int arg2);
 
@@ -237,6 +239,8 @@ int main(int argc, char *argv[]) {
     pthread_create(&t_printer,  NULL, print_map,  (void *)&m_data);
     pthread_create(&t_game,     NULL, loop_juego, NULL);
     pthread_create(&t_estacion, NULL, loop_estacion, NULL);
+    //pthread_create(&t_compras,  NULL, loop_compras, NULL);
+
     while (1) {
         int ch = wgetch(win);
         if (ch == 'q' || ch == 'Q') break;
@@ -249,10 +253,14 @@ int main(int argc, char *argv[]) {
     pthread_cancel(t_receiver);
     pthread_cancel(t_printer);
     pthread_cancel(t_game);
+    //pthread_cancel(t_compras);
+    pthread_cancel(t_estacion);
 
     pthread_join(t_receiver, NULL);
     pthread_join(t_printer,  NULL);
     pthread_join(t_game,     NULL);
+    pthread_join(t_compras,  NULL);
+   // pthread_join(t_estacion, NULL);
 
     mq_close(receiver);
     mq_unlink(RECEIVER_MESSAGE_QUEUE);
@@ -284,11 +292,18 @@ void *receive_mq(void *param) {
         int id = 0, arg1 = 0, arg2 = 0;
 
         if (sscanf(data->buff, "%c %c %d %d %d", &tipo, &entidad, &id, &arg1, &arg2) >= 2) {
-            if (entidad == 'N') manejo_nave(tipo, id, arg1, arg2);
+            
+            if (entidad == 'N'&& (tipo == 'M' || tipo == 'I')) manejo_nave(tipo, id, arg1, arg2);
+            
+            if (entidad == 'N'&& tipo == 'C') {
+                compras(id, arg1);
+            }
 
             if (entidad == 'E')
                 crearEstacion(tipo, id, arg1, arg2);
         }
+       
+
     }
     return NULL;
 }
@@ -388,6 +403,51 @@ void place_asteroids(char map[][WIN_WIDTH]) {
         placed++;
     }
 }
+void loop_compras(int id, int arg1) {
+    if (id < 0 || id >= MAX_NAVES) return;
+    int compra = atoi(arg1);
+    while (1) {
+        sleep(1);
+        for (int i = 0; i < MAX_NAVES; i++) {
+            if (espacio_compartido->naves[i].activa) {
+                for (int j = 0; j < NUM_STATIONS; j++) {
+                    if (espacio_compartido->estaciones[j].activa) {
+                        int dx = abs(espacio_compartido->naves[i].x - espacio_compartido->estaciones[j].x);
+                        int dy = abs(espacio_compartido->naves[i].y - espacio_compartido->estaciones[j].y);
+                        if (dx <= 1 && dy <= 1) {
+                            // La nave i está adyacente a la estación j, realizar compra
+                            compras(i, j, compra);
+                        }
+                    }
+                }
+                
+               
+            }
+        }
+    }
+    return NULL;
+}
+
+void compra (int idNave, int idEstacion, int compra) {
+    
+
+    pthread_mutex_lock(&espacio_compartido->estaciones[idEstacion].mutex);
+    pthread_mutex_lock(&espacio_compartido->naves[idNave].mutex);
+    
+    switch (compra) {
+        case '1': espacio_compartido->naves[idNave].cargamento[IDX_DEUTERIO] += 1; break;
+        case '2': espacio_compartido->naves[idNave].cargamento[IDX_MUTEXIO] += 1; break;
+        case '3': espacio_compartido->naves[idNave].cargamento[IDX_SEMAFORITA] += 1; break;
+        case '4': espacio_compartido->naves[idNave].cargamento[IDX_KERNELIO] += 1; break;
+        case '5': espacio_compartido->naves[idNave].cargamento[IDX_BILLETERA] += 1; break;
+        default: break;
+    }
+    
+    
+
+    pthread_mutex_unlock(&espacio_compartido->naves[idNave].mutex);
+    pthread_mutex_unlock(&espacio_compartido->estaciones[idEstacion].mutex);
+}
 
 void loop_estacion(void *param) {
     (void)param;
@@ -434,6 +494,7 @@ void manejo_nave(char tipo, int id, int arg1, int arg2) {
             espacio_compartido->naves[id].y           = WIN_HEIGHT / 2;
             espacio_compartido->naves[id].combustible = COMBUSTIBLE_INICIAL;
             espacio_compartido->naves[id].oxigeno     = OXIGENO_INICIAL;
+            espacio_compartido->naves[id].escudo      = ESCUDO_INICIAL;
             espacio_compartido->naves[id].activa      = 1;
             espacio_compartido->naves[id].simbolo     = 'N';
             pthread_mutex_init(&espacio_compartido->naves[id].mutex, NULL); /* mutex independiente por nave */

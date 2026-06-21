@@ -126,11 +126,11 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
     mvwprintw(win, 11, 4, "Kernelio:   %d", price_kernelio);
 
     mvwprintw(win, 12, 2, "Recursos Venta:");
-    mvwprintw(win, 13, 4, "Para extraer combustible precione 'E'");
-    mvwprintw(win, 14, 4, "Para Comprar Oxigeno precione '1'    %d", price_oxigeno);
-    mvwprintw(win, 15, 4, "Para Reparar Armadura precione '2'   %d", price_reparar);
-    mvwprintw(win, 16, 4, "Para Super Armadura precione '3':   %d", price_super_armadura);
-    mvwprintw(win, 17, 4, "Para ComprarCondimento Para Pizza precione '4': %d", price_condimento);
+    mvwprintw(win, 13, 4, "Para extraer combustible presione 'E'");
+    mvwprintw(win, 14, 4, "Para Comprar Oxigeno presione '1'    %d", price_oxigeno);
+    mvwprintw(win, 15, 4, "Para Reparar Armadura presione '2'   %d", price_reparar);
+    mvwprintw(win, 16, 4, "Para Super Armadura presione '3':   %d", price_super_armadura);
+    mvwprintw(win, 17, 4, "Para ComprarCondimento Para Pizza presione '4': %d", price_condimento);
 
     wrefresh(win);
 }
