@@ -52,8 +52,6 @@ void compraSuperArmadura(int idNave, int idEstacion);
 void compraCondimentoPizza(int idEstacion);
 //void compras(int idNave, int idEstacion, int compra);
 
-
-
 static void log_transaccion_asteroide(int nave_id, int ast_id, int deut, int mut, int sem, int ker);
 static void log_transaccion_nave(int nave_id, int muerta_id, int deut, int mut, int sem, int ker, int comb, int ox);
 
@@ -130,7 +128,7 @@ void crearEstacion(char tipo, int id) {
        row = 1 + rand() % (WIN_HEIGHT - 2);
        col = 1 + rand() % (WIN_WIDTH  - 2);
     }
-        
+
     if (tipo == 'I') {
         if (!espacio_compartido->estaciones[id].activa) {
             espacio_compartido->estaciones[id].id          = id;
@@ -301,7 +299,7 @@ int main(int argc, char *argv[]) {
     mq_close(receiver);
     mq_unlink(RECEIVER_MESSAGE_QUEUE);
 
-    /* Destruir mutexs */
+    /* Destruir mutexes */
     for (int i = 0; i < NUM_ASTEROIDS; i++) {
         pthread_mutex_destroy(&asteroides[i].mutex);
     }
