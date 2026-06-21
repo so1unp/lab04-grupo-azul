@@ -16,7 +16,6 @@
 #define NUM_ASTEROIDS 10
 #define MAX_NAVES     4
 
-
 #define price_mutexio       15
 #define price_semaforita    40
 #define price_kernelio      55
@@ -25,8 +24,6 @@
 #define price_reparar       25
 #define price_condimento    500
 #define price_super_armadura 50
-
-
 
 #define COSTO_MOVIMIENTO 1
 #define COSTO_EXTRACCION 5

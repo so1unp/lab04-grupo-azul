@@ -102,26 +102,21 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
     a->semaforita = 0;
     a->kernelio   = 0;
     a->active     = 0;
-    
-    //posible modificacion del mapa para eliminar el asteroide
-        espacio_compartido->map[a->row][a->col] = ' ';
 
     pthread_mutex_unlock(&a->mutex);
 }
+
 void crearEstacion(char tipo, int id) {
-     if (id < 0 || id >= NUM_STATIONS) return;
-
+    if (id < 0 || id >= NUM_STATIONS) return;
      
-     int row = 1 + rand() % (WIN_HEIGHT - 2);
-     int col = 1 + rand() % (WIN_WIDTH  - 2);
+    int row = 1 + rand() % (WIN_HEIGHT - 2);
+    int col = 1 + rand() % (WIN_WIDTH  - 2);
 
-     while(espacio_compartido->map[row][col] != ' ' || (row == WIN_HEIGHT / 2 && col == WIN_WIDTH / 2)){
-        row = 1 + rand() % (WIN_HEIGHT - 2);
-        col = 1 + rand() % (WIN_WIDTH  - 2);
-     }
+    while(espacio_compartido->map[row][col] != ' ' || (row == WIN_HEIGHT / 2 && col == WIN_WIDTH / 2)){
+       row = 1 + rand() % (WIN_HEIGHT - 2);
+       col = 1 + rand() % (WIN_WIDTH  - 2);
+    }
         
-       
-
     if (tipo == 'I') {
         if (!espacio_compartido->estaciones[id].activa) {
             espacio_compartido->estaciones[id].id          = id;
@@ -129,9 +124,9 @@ void crearEstacion(char tipo, int id) {
             espacio_compartido->estaciones[id].y           = row;
             espacio_compartido->estaciones[id].combustible = COMBUSTIBLE_INICIAL;
             espacio_compartido->estaciones[id].oxigeno     = OXIGENO_INICIAL_ESTACION;
-            espacio_compartido->estaciones[id].billetera    = BILLETERA_INICIAL;
+            espacio_compartido->estaciones[id].billetera   = BILLETERA_INICIAL;
             espacio_compartido->estaciones[id].activa      = 1;
-            espacio_compartido->estaciones[id].hangar       = HANGAR;
+            espacio_compartido->estaciones[id].hangar      = HANGAR;
             espacio_compartido->estaciones[id].simbolo     = 'E';
             espacio_compartido->estaciones[id].cargamento[IDX_DEUTERIO]   = 0;
             espacio_compartido->estaciones[id].cargamento[IDX_MUTEXIO]    = 0;
@@ -144,7 +139,6 @@ void crearEstacion(char tipo, int id) {
         }
     }
 }
-
 
 /* Extrae los recursos de una nave muerta.
    Lock solo sobre la nave tocada */
@@ -311,20 +305,19 @@ void *receive_mq(void *param) {
         int id = 0, arg1 = 0, arg2 = 0;
 
         if (sscanf(data->buff, "%c %c %d %d %d", &tipo, &entidad, &id, &arg1, &arg2) >= 2) {
-            
-            if (entidad == 'N'&& (tipo == 'M' || tipo == 'I')) manejo_nave(tipo, id, arg1, arg2);
-            
-            if (entidad == 'N'&& tipo == 'C') {
+            if (entidad == 'N' && (tipo == 'M' || tipo == 'I')) {
+                manejo_nave(tipo, id, arg1, arg2);
+            }
+
+            if (entidad == 'N' && tipo == 'C') {
                 loop_compras(id, arg1);
             }
 
-            if (entidad == 'E')
+            if (entidad == 'E') {
                 crearEstacion(tipo, id);
+            }
         }
-       
-
     }
-    
 }
 
 void *print_map(void *param) {
@@ -369,7 +362,6 @@ void *loop_juego(void *param) {
 
                 // Limpiar
                 delwin(modal);
-
             }
             if (espacio_compartido->estaciones[i].combustible <= 0) {
                 espacio_compartido->estaciones[i].activa = 0;
@@ -401,25 +393,25 @@ void place_asteroids(char map[][WIN_WIDTH]) {
 
         if (map[row][col] != ' ' || (row == WIN_HEIGHT / 2 && col == WIN_WIDTH / 2)) continue;
        
+        Asteroide *asteroide = &asteroides[placed];
+        asteroide->row        = row;
+        asteroide->col        = col;
+        asteroide->active     = 1;
+        asteroide->deuterio   = 20 + rand() % 31;
+        asteroide->mutexio    = (rand() % 2) ? (5 + rand() % 6) : 0;
+        asteroide->semaforita = (rand() % 2) ? (3 + rand() % 6) : 0;
+        asteroide->kernelio   = (rand() % 2) ? (1 + rand() % 3) : 0;
+        asteroide->oxigeno    = (rand() % 5 == 0) ? (1 + rand() % 5) : 0;
+        asteroide->aleacion   = (rand() % 5 == 0) ? (1 + rand() % 3) : 0;
+        asteroide->condimento = (rand() % 5 == 0) ? (1 + rand() % 4) : 0;
 
-        Asteroide *a = &asteroides[placed];
-        a->row        = row;
-        a->col        = col;
-        a->active     = 1;
-        a->deuterio   = 20 + rand() % 31;
-        a->mutexio    = (rand() % 2) ? (5 + rand() % 6) : 0;
-        a->semaforita = (rand() % 2) ? (3 + rand() % 6) : 0;
-        a->kernelio   = (rand() % 2) ? (1 + rand() % 3) : 0;
-        a->oxigeno    = (rand() % 5 == 0) ? (1 + rand() % 5) : 0;
-        a->aleacion   = (rand() % 5 == 0) ? (1 + rand() % 3) : 0;
-        a->condimento = (rand() % 5 == 0) ? (1 + rand() % 4) : 0;
-
-        pthread_mutex_init(&a->mutex, NULL); /* mutex independiente por asteroide */
+        pthread_mutex_init(&asteroide->mutex, NULL); /* mutex independiente por asteroide */
 
         map[row][col] = ASTEROID_SYMBOL;
         placed++;
     }
 }
+
 void loop_compras(int id, int compraNum) {
     if (id < 0 || id >= MAX_NAVES) return;
     
@@ -438,8 +430,6 @@ void loop_compras(int id, int compraNum) {
 }
 
 void compra (int idNave, int idEstacion, int compraNum) {
-    
-
     pthread_mutex_lock(&espacio_compartido->estaciones[idEstacion].mutex);
     pthread_mutex_lock(&espacio_compartido->naves[idNave].mutex);
     
@@ -457,6 +447,7 @@ void compra (int idNave, int idEstacion, int compraNum) {
     pthread_mutex_unlock(&espacio_compartido->naves[idNave].mutex);
     pthread_mutex_unlock(&espacio_compartido->estaciones[idEstacion].mutex);
 }
+
 void vender(int idNave, int idEstacion) {
     if (espacio_compartido->naves[idNave].cargamento[IDX_DEUTERIO] > 0) {
         espacio_compartido->estaciones[idEstacion].cargamento[IDX_DEUTERIO] += espacio_compartido->naves[idNave].cargamento[IDX_DEUTERIO];
@@ -529,8 +520,6 @@ void *loop_estacion(void *param) {
                 espacio_compartido->estaciones[i].cargamento[IDX_MUTEXIO]=0;
                 espacio_compartido->estaciones[i].cargamento[IDX_SEMAFORITA]=0;
                 espacio_compartido->estaciones[i].cargamento[IDX_KERNELIO]=0;
-                
-                
                 
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
             }

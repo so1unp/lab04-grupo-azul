@@ -21,8 +21,6 @@
 #define ESCUDO_INICIAL       50
 #define SUPER_ARMADURA 150
 
-
-
 /* Estructura que representa una nave espacial minera */
 typedef struct {
     int  id;

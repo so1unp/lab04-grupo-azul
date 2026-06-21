@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
     curs_set(0);
 
     WINDOW *map_win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
-    WINDOW *info_win = newwin(20, 70, 14, WIN_WIDTH + 2);
+    WINDOW *info_win = newwin(20, 46, 0, WIN_WIDTH);
     wtimeout(map_win, 100);
 
     int salir = 0;
@@ -126,11 +126,11 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
     mvwprintw(win, 11, 4, "Precio del Kernelio:    %d", price_kernelio);
 
     mvwprintw(win, 12, 2, "Recursos a la venta:");
-    mvwprintw(win, 13, 4, "Para extraer combustible presione           'e'");
-    mvwprintw(win, 14, 4, "Para Comprar Oxigeno presione               '1'   %d", price_oxigeno);
-    mvwprintw(win, 15, 4, "Para Reparar Armadura presione              '2'   %d", price_reparar);
-    mvwprintw(win, 16, 4, "Para Super Armadura presione                '3'   %d", price_super_armadura);
-    mvwprintw(win, 17, 4, "Para Comprar Condimento Para Pizza presione '4'   %d", price_condimento);
+    mvwprintw(win, 13, 4, "Para extraer combustible presione 'e'");
+    mvwprintw(win, 14, 4, "Para Comprar Oxigeno presione     '1' %d", price_oxigeno);
+    mvwprintw(win, 15, 4, "Para Reparar Armadura presione    '2' %d", price_reparar);
+    mvwprintw(win, 16, 4, "Para Super Armadura presione      '3' %d", price_super_armadura);
+    mvwprintw(win, 17, 4, "Para Comprar Condimento presione  '4' %d", price_condimento);
 
     wrefresh(win);
 }
