@@ -514,7 +514,7 @@ void compraCondimentoPizza(int idEstacion) {
 void *loop_estacion(void *param) {
     (void)param;
     while (1) {
-        sleep(50);
+        sleep(1);
         for (int i = 0; i < NUM_STATIONS; i++) {
             if (espacio_compartido->estaciones[i].activa) {
                
