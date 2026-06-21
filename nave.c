@@ -91,6 +91,7 @@ int main(int argc, char *argv[]) {
             case 'a': dx = -1; break;
             case 'd': dx = 1; break;
             case 'q': salir = 1; break;
+            case 'v': compra = 0; break;
             case 'e': compra = 1; break;
             case '1': compra = 2; break;
             case '2': compra = 3; break;
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]) {
             sprintf(msg, "M N %d %d %d", my_id, dx, dy);
             mq_send(sender, msg, strlen(msg), 0);
         }
-        if (compra && espacio_compartido->naves[my_id].activa) {
+        if (compra != -1 && espacio_compartido->naves[my_id].activa) {
             sprintf(msg, "C N %d %d", my_id, compra);
             mq_send(sender, msg, strlen(msg), 0);
         }

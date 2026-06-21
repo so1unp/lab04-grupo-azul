@@ -13,6 +13,7 @@
 #include "asteroides.h"
 #include "config.h"
 #include "nave.h"
+#include "estacion.h"
 
 #define BUFF_SIZE 1024
 #define ASTEROID_SYMBOL '*'
@@ -34,7 +35,7 @@ void *receive_mq(void *param);
 void *print_map(void *param);
 void *loop_juego(void *param);
 void *loop_estacion(void *param);
-//void *loop_compras(void *param);
+
 void place_asteroids(char map[][WIN_WIDTH]);
 void manejo_nave(char tipo, int id, int arg1, int arg2);
 
@@ -296,7 +297,7 @@ void *receive_mq(void *param) {
             if (entidad == 'N'&& (tipo == 'M' || tipo == 'I')) manejo_nave(tipo, id, arg1, arg2);
             
             if (entidad == 'N'&& tipo == 'C') {
-                compras(id, arg1);
+                loop_compras(id, arg1);
             }
 
             if (entidad == 'E')
@@ -405,25 +406,26 @@ void place_asteroids(char map[][WIN_WIDTH]) {
 }
 void loop_compras(int id, int arg1) {
     if (id < 0 || id >= MAX_NAVES) return;
-    int compra = atoi(arg1);
+    
     while (1) {
         sleep(1);
-        for (int i = 0; i < MAX_NAVES; i++) {
-            if (espacio_compartido->naves[i].activa) {
+        
+            if (espacio_compartido->naves[id].activa) {
                 for (int j = 0; j < NUM_STATIONS; j++) {
                     if (espacio_compartido->estaciones[j].activa) {
-                        int dx = abs(espacio_compartido->naves[i].x - espacio_compartido->estaciones[j].x);
-                        int dy = abs(espacio_compartido->naves[i].y - espacio_compartido->estaciones[j].y);
+                        int dx = abs(espacio_compartido->naves[id].x - espacio_compartido->estaciones[j].x);
+                        int dy = abs(espacio_compartido->naves[id].y - espacio_compartido->estaciones[j].y);
                         if (dx <= 1 && dy <= 1) {
-                            // La nave i está adyacente a la estación j, realizar compra
-                            compras(i, j, compra);
+                            // La nave está adyacente a la estación j
+                            compras(id, j, arg1);
+
                         }
                     }
                 }
                 
                
             }
-        }
+        
     }
     return NULL;
 }
@@ -435,18 +437,71 @@ void compra (int idNave, int idEstacion, int compra) {
     pthread_mutex_lock(&espacio_compartido->naves[idNave].mutex);
     
     switch (compra) {
-        case '1': espacio_compartido->naves[idNave].cargamento[IDX_DEUTERIO] += 1; break;
-        case '2': espacio_compartido->naves[idNave].cargamento[IDX_MUTEXIO] += 1; break;
-        case '3': espacio_compartido->naves[idNave].cargamento[IDX_SEMAFORITA] += 1; break;
-        case '4': espacio_compartido->naves[idNave].cargamento[IDX_KERNELIO] += 1; break;
-        case '5': espacio_compartido->naves[idNave].cargamento[IDX_BILLETERA] += 1; break;
+
+        case '0': vender(idNave, idEstacion); break;
+        case '1': compraCombustible(idNave, idEstacion); break;
+        case '2': compraOxigeno(idNave, idEstacion); break;
+        case '3': compraArmadura(idNave, idEstacion); break;
+        case '4': compraSuperArmadura(idNave, idEstacion); break;
+        case '5': compraCondimentoPizza(idNave, idEstacion); break;
         default: break;
     }
     
-    
-
     pthread_mutex_unlock(&espacio_compartido->naves[idNave].mutex);
     pthread_mutex_unlock(&espacio_compartido->estaciones[idEstacion].mutex);
+}
+void vender(int idNave, int idEstacion) {
+    if (espacio_compartido->naves[idNave].cargamento[IDX_DEUTERIO] > 0) {
+        espacio_compartido->estaciones[idEstacion].cargamento[IDX_DEUTERIO] += espacio_compartido->naves[idNave].cargamento[IDX_DEUTERIO];
+        espacio_compartido->naves[idNave].cargamento[IDX_DEUTERIO] = 0;
+    }
+    if (espacio_compartido->naves[idNave].cargamento[IDX_MUTEXIO] > 0) {
+        espacio_compartido->estaciones[idEstacion].cargamento[IDX_MUTEXIO] += espacio_compartido->naves[idNave].cargamento[IDX_MUTEXIO];
+        espacio_compartido->naves[idNave].cargamento[IDX_MUTEXIO] = 0;
+    }
+    if (espacio_compartido->naves[idNave].cargamento[IDX_SEMAFORITA] > 0) {
+        espacio_compartido->estaciones[idEstacion].cargamento[IDX_SEMAFORITA] += espacio_compartido->naves[idNave].cargamento[IDX_SEMAFORITA];
+        espacio_compartido->naves[idNave].cargamento[IDX_SEMAFORITA] = 0;
+    }
+    if (espacio_compartido->naves[idNave].cargamento[IDX_KERNELIO] > 0) {
+        espacio_compartido->estaciones[idEstacion].cargamento[IDX_KERNELIO] += espacio_compartido->naves[idNave].cargamento[IDX_KERNELIO];
+        espacio_compartido->naves[idNave].cargamento[IDX_KERNELIO] = 0;
+    }
+}
+
+void compraCombustible(int idNave, int idEstacion) {
+    if (espacio_compartido->estaciones[idEstacion].combustible > 20 && espacio_compartido->naves[idNave].combustible < COMBUSTIBLE_INICIAL) {
+        espacio_compartido->estaciones[idEstacion].combustible --;
+        espacio_compartido->naves[idNave].combustible ++;
+    }
+}
+
+void compraOxigeno(int idNave, int idEstacion) {
+    if (espacio_compartido->estaciones[idEstacion].billetera >= price_oxigeno && espacio_compartido->naves[idNave].oxigeno < OXIGENO_INICIAL) {
+        espacio_compartido->estaciones[idEstacion].billetera -= price_oxigeno;
+        espacio_compartido->naves[idNave].oxigeno ++;
+    }
+}
+
+void compraArmadura(int idNave, int idEstacion) {
+    if (espacio_compartido->estaciones[idEstacion].billetera >= price_reparar && espacio_compartido->naves[idNave].armadura < ESCUDO_INICIAL) {
+        espacio_compartido->estaciones[idEstacion].billetera -= price_reparar;
+        espacio_compartido->naves[idNave].armadura ++;
+    }
+}
+
+void compraSuperArmadura(int idNave, int idEstacion) {
+    if (espacio_compartido->estaciones[idEstacion].billetera >= price_super_armadura) {
+        espacio_compartido->estaciones[idEstacion].billetera -= price_super_armadura;
+        espacio_compartido->naves[idNave].armadura = SUPER_ARMADURA;
+    }
+}
+
+void compraCondimentoPizza(int idNave, int idEstacion) {
+    if (espacio_compartido->estaciones[idEstacion].billetera >= price_condimento) {
+        espacio_compartido->estaciones[idEstacion].billetera -= price_condimento;
+        place_asteroids(espacio_compartido->map);
+    }
 }
 
 void loop_estacion(void *param) {
@@ -467,14 +522,7 @@ void loop_estacion(void *param) {
                 espacio_compartido->estaciones[i].cargamento[IDX_MUTEXIO]=0;
                 espacio_compartido->estaciones[i].cargamento[IDX_SEMAFORITA]=0;
                 espacio_compartido->estaciones[i].cargamento[IDX_KERNELIO]=0;
-                /*if (espacio_compartido->estaciones[i].billetera >= price_deuterio) {
-                    espacio_compartido->estaciones[i].combustible ++;
-                    espacio_compartido->estaciones[i].billetera -= price_deuterio;
-                }
-                if (espacio_compartido->estaciones[i].billetera >= price_oxigeno) {
-                    espacio_compartido->estaciones[i].oxigeno++;
-                    espacio_compartido->estaciones[i].billetera -= price_oxigeno;
-                }*/
+                
                 
                 
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);

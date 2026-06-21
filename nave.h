@@ -19,6 +19,7 @@
 #define COMBUSTIBLE_INICIAL  100
 #define OXIGENO_INICIAL      100
 #define ESCUDO_INICIAL       50
+#define SUPER_ARMADURA 150
 
 /* Estructura que representa una nave espacial minera */
 typedef struct {

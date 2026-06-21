@@ -24,8 +24,8 @@ typedef struct {
     int  cargamento[NUM_RECURSOS];
     int  activa;
     char simbolo;
-    int hangar;
-    int billetera;
+    int  hangar;
+    int  billetera;
     pthread_mutex_t mutex;  /* un mutex por estacion */
     
 } Estacion;

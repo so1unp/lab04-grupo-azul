@@ -119,14 +119,14 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
         mvwprintw(win, 6, 2, "Estado:      DESACTIVADA");
     }
 
-    mvwprintw(win, 7, 2, "Recursos Compra:");
+    mvwprintw(win, 7, 2, "Para vender sus recursos presione 'v' :");
     mvwprintw(win, 8, 4, "Deuterio:   %d", price_deuterio);
     mvwprintw(win, 9, 4, "Mutexio:    %d", price_mutexio);
     mvwprintw(win, 10, 4, "Semaforita: %d", price_semaforita);
     mvwprintw(win, 11, 4, "Kernelio:   %d", price_kernelio);
 
-    mvwprintw(win, 12, 2, "Recursos Venta:");
-    mvwprintw(win, 13, 4, "Para extraer combustible presione 'E'");
+    mvwprintw(win, 12, 2, "Recursos a la venta:");
+    mvwprintw(win, 13, 4, "Para extraer combustible presione 'e'");
     mvwprintw(win, 14, 4, "Para Comprar Oxigeno presione '1'    %d", price_oxigeno);
     mvwprintw(win, 15, 4, "Para Reparar Armadura presione '2'   %d", price_reparar);
     mvwprintw(win, 16, 4, "Para Super Armadura presione '3':   %d", price_super_armadura);
