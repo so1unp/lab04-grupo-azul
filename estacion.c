@@ -8,10 +8,12 @@
 #include <unistd.h>
 #include <mqueue.h>
 
-#include "nave.h"
+#include "estacion.h"
 #include "config.h"
 
-static void dibujar(WINDOW *map_win, EspacioCompartido *espacio_compartido, int my_id) {
+void mostrar_info(WINDOW *win, const Estacion *estacion);
+
+static void dibujar(WINDOW *map_win, WINDOW *info_win, EspacioCompartido *espacio_compartido, int my_id) {
     werase(map_win);
     box(map_win, 0, 0);
 
@@ -21,6 +23,8 @@ static void dibujar(WINDOW *map_win, EspacioCompartido *espacio_compartido, int 
         }
     }
     wrefresh(map_win);
+
+    mostrar_info(info_win, &espacio_compartido->estaciones[my_id]);
 }
 
 int main(int argc, char *argv[]) {
@@ -70,18 +74,22 @@ int main(int argc, char *argv[]) {
     curs_set(0);
 
     WINDOW *map_win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
+    WINDOW *info_win = newwin(20, 70, 14, WIN_WIDTH + 2);
     wtimeout(map_win, 100);
 
     int salir = 0;
     while (!salir) {
-        dibujar(map_win, espacio_compartido, my_id);
+
+        dibujar(map_win, info_win, espacio_compartido, my_id);
         
         int tecla = wgetch(map_win);
         
         if (tecla == 'q' || tecla == 'Q') break;
+
     }
 
     werase(map_win);
+    werase(info_win);
     endwin();
 
     mq_close(sender);
@@ -89,4 +97,40 @@ int main(int argc, char *argv[]) {
     close(shm_fd);
 
     exit(EXIT_SUCCESS);
+}
+
+void mostrar_info(WINDOW *win, const Estacion *estacion) {
+    if (win == NULL || estacion == NULL) {
+        return;
+    }
+
+    werase(win);
+    box(win, 0, 0);
+
+    mvwprintw(win, 1, 2, "Estacion %d", estacion->id);
+    mvwprintw(win, 2, 2, "Posicion:    (%d, %d)", estacion->x, estacion->y);
+    mvwprintw(win, 3, 2, "Combustible: %d", estacion->combustible);
+    mvwprintw(win, 4, 2, "Oxigeno:     %d", estacion->oxigeno);
+    mvwprintw(win, 5, 2, "Billetera:   %d", estacion->billetera);
+
+    if (estacion->activa) {
+        mvwprintw(win, 6, 2, "Estado:      ACTIVA");
+    } else {
+        mvwprintw(win, 6, 2, "Estado:      DESACTIVADA");
+    }
+
+    mvwprintw(win, 7, 2, "Para vender sus recursos presione 'v'");
+    mvwprintw(win, 8, 4, "Cambie Deuterio por Combustible");
+    mvwprintw(win, 9, 4, "Precio del Mutexio:      %d", price_mutexio);
+    mvwprintw(win, 10, 4, "Precio del Semaforita:  %d", price_semaforita);
+    mvwprintw(win, 11, 4, "Precio del Kernelio:    %d", price_kernelio);
+
+    mvwprintw(win, 12, 2, "Recursos a la venta:");
+    mvwprintw(win, 13, 4, "Para extraer combustible presione           'e'");
+    mvwprintw(win, 14, 4, "Para Comprar Oxigeno presione               '1'   %d", price_oxigeno);
+    mvwprintw(win, 15, 4, "Para Reparar Armadura presione              '2'   %d", price_reparar);
+    mvwprintw(win, 16, 4, "Para Super Armadura presione                '3'   %d", price_super_armadura);
+    mvwprintw(win, 17, 4, "Para Comprar Condimento Para Pizza presione '4'   %d", price_condimento);
+
+    wrefresh(win);
 }

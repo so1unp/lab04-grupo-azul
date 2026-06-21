@@ -83,6 +83,7 @@ int main(int argc, char *argv[]) {
 
         int tecla = wgetch(map_win);
         int dx = 0, dy = 0;
+        int compra=-1;
 
         switch (tecla) {
             case 'w': dy = -1; break;
@@ -90,11 +91,21 @@ int main(int argc, char *argv[]) {
             case 'a': dx = -1; break;
             case 'd': dx = 1; break;
             case 'q': salir = 1; break;
+            case 'v': compra = 0; break;
+            case 'e': compra = 1; break;
+            case '1': compra = 2; break;
+            case '2': compra = 3; break;
+            case '3': compra = 4; break;
+            case '4': compra = 5; break;
             default: break;
         }
 
         if ((dx != 0 || dy != 0) && espacio_compartido->naves[my_id].activa) {
             sprintf(msg, "M N %d %d %d", my_id, dx, dy);
+            mq_send(sender, msg, strlen(msg), 0);
+        }
+        if (compra != -1 && espacio_compartido->naves[my_id].activa) {
+            sprintf(msg, "C N %d %d", my_id, compra);
             mq_send(sender, msg, strlen(msg), 0);
         }
     }
@@ -122,18 +133,19 @@ void mostrar_info(WINDOW *win, const Nave *nave) {
     mvwprintw(win, 2, 2, "Posicion:    (%d, %d)", nave->x, nave->y);
     mvwprintw(win, 3, 2, "Combustible: %d", nave->combustible);
     mvwprintw(win, 4, 2, "Oxigeno:     %d", nave->oxigeno);
+    mvwprintw(win, 5, 2, "Escudo:      %d", nave->escudo);
 
     if (nave->activa) {
-        mvwprintw(win, 5, 2, "Estado:      ACTIVA");
+        mvwprintw(win, 6, 2, "Estado:      ACTIVA");
     } else {
-        mvwprintw(win, 5, 2, "Estado:      DESACTIVADA");
+        mvwprintw(win, 6, 2, "Estado:      DESACTIVADA");
     }
 
-    mvwprintw(win, 7, 2, "Cargamento:");
-    mvwprintw(win, 8, 4, "Deuterio:   %d", nave->cargamento[IDX_DEUTERIO]);
-    mvwprintw(win, 9, 4, "Mutexio:    %d", nave->cargamento[IDX_MUTEXIO]);
-    mvwprintw(win, 10, 4, "Semaforita: %d", nave->cargamento[IDX_SEMAFORITA]);
-    mvwprintw(win, 11, 4, "Kernelio:   %d", nave->cargamento[IDX_KERNELIO]);
+    mvwprintw(win, 8, 2, "Cargamento:");
+    mvwprintw(win, 9, 4, "Deuterio:   %d", nave->cargamento[IDX_DEUTERIO]);
+    mvwprintw(win, 10, 4, "Mutexio:    %d", nave->cargamento[IDX_MUTEXIO]);
+    mvwprintw(win, 11, 4, "Semaforita: %d", nave->cargamento[IDX_SEMAFORITA]);
+    mvwprintw(win, 12, 4, "Kernelio:   %d", nave->cargamento[IDX_KERNELIO]);
 
     wrefresh(win);
 }
