@@ -417,7 +417,7 @@ void place_asteroids(char map[][WIN_WIDTH]) {
         placed++;
     }
 }
-void loop_compras(int id, int arg1) {
+void loop_compras(int id, int compraNum) {
     if (id < 0 || id >= MAX_NAVES) return;
     
     if (espacio_compartido->naves[id].activa) {
@@ -427,27 +427,27 @@ void loop_compras(int id, int arg1) {
                 int dy = abs(espacio_compartido->naves[id].y - espacio_compartido->estaciones[j].y);
                 if (dx <= 1 && dy <= 1) {
                     // La nave está adyacente a la estación j
-                    compra(id, j, arg1);
+                    compra(id, j, compraNum);
                 }
             }
         }
     }
 }
 
-void compra (int idNave, int idEstacion, int compra) {
+void compra (int idNave, int idEstacion, int compraNum) {
     
 
     pthread_mutex_lock(&espacio_compartido->estaciones[idEstacion].mutex);
     pthread_mutex_lock(&espacio_compartido->naves[idNave].mutex);
     
-    switch (compra) {
+    switch (compraNum) {
 
-        case '0': vender(idNave, idEstacion); break;
-        case '1': compraCombustible(idNave, idEstacion); break;
-        case '2': compraOxigeno(idNave, idEstacion); break;
-        case '3': compraArmadura(idNave, idEstacion); break;
-        case '4': compraSuperArmadura(idNave, idEstacion); break;
-        case '5': compraCondimentoPizza(idEstacion); break;
+        case 0: vender(idNave, idEstacion); break;
+        case 1: compraCombustible(idNave, idEstacion); break;
+        case 2: compraOxigeno(idNave, idEstacion); break;
+        case 3: compraArmadura(idNave, idEstacion); break;
+        case 4: compraSuperArmadura(idNave, idEstacion); break;
+        case 5: compraCondimentoPizza(idEstacion); break;
         default: break;
     }
     
