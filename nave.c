@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 
         int tecla = wgetch(map_win);
         int dx = 0, dy = 0;
-        int compra=0;
+        int compra=-1;
 
         switch (tecla) {
             case 'w': dy = -1; break;

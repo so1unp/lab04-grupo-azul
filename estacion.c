@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
     curs_set(0);
 
     WINDOW *map_win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
-    WINDOW *info_win = newwin(14, 35, WIN_HEIGHT + 2, 0);
+    WINDOW *info_win = newwin(20, 70, 14, WIN_WIDTH + 2);
     wtimeout(map_win, 100);
 
     int salir = 0;
@@ -119,18 +119,18 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
         mvwprintw(win, 6, 2, "Estado:      DESACTIVADA");
     }
 
-    mvwprintw(win, 7, 2, "Para vender sus recursos presione 'v' :");
+    mvwprintw(win, 7, 2, "Para vender sus recursos presione 'v'");
     mvwprintw(win, 8, 4, "Cambie Deuterio por Combustible");
-    mvwprintw(win, 9, 4, "Mutexio:    %d", price_mutexio);
-    mvwprintw(win, 10, 4, "Semaforita: %d", price_semaforita);
-    mvwprintw(win, 11, 4, "Kernelio:   %d", price_kernelio);
+    mvwprintw(win, 9, 4, "Precio del Mutexio:      %d", price_mutexio);
+    mvwprintw(win, 10, 4, "Precio del Semaforita:  %d", price_semaforita);
+    mvwprintw(win, 11, 4, "Precio del Kernelio:    %d", price_kernelio);
 
     mvwprintw(win, 12, 2, "Recursos a la venta:");
-    mvwprintw(win, 13, 4, "Para extraer combustible presione 'e'");
-    mvwprintw(win, 14, 4, "Para Comprar Oxigeno presione '1'    %d", price_oxigeno);
-    mvwprintw(win, 15, 4, "Para Reparar Armadura presione '2'   %d", price_reparar);
-    mvwprintw(win, 16, 4, "Para Super Armadura presione '3':   %d", price_super_armadura);
-    mvwprintw(win, 17, 4, "Para ComprarCondimento Para Pizza presione '4': %d", price_condimento);
+    mvwprintw(win, 13, 4, "Para extraer combustible presione           'e'");
+    mvwprintw(win, 14, 4, "Para Comprar Oxigeno presione               '1'   %d", price_oxigeno);
+    mvwprintw(win, 15, 4, "Para Reparar Armadura presione              '2'   %d", price_reparar);
+    mvwprintw(win, 16, 4, "Para Super Armadura presione                '3'   %d", price_super_armadura);
+    mvwprintw(win, 17, 4, "Para Comprar Condimento Para Pizza presione '4'   %d", price_condimento);
 
     wrefresh(win);
 }

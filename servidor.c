@@ -130,6 +130,11 @@ void crearEstacion(char tipo, int id) {
             espacio_compartido->estaciones[id].activa      = 1;
             espacio_compartido->estaciones[id].hangar       = HANGAR;
             espacio_compartido->estaciones[id].simbolo     = 'E';
+            espacio_compartido->estaciones[id].cargamento[IDX_DEUTERIO]   = 0;
+            espacio_compartido->estaciones[id].cargamento[IDX_MUTEXIO]    = 0;
+            espacio_compartido->estaciones[id].cargamento[IDX_SEMAFORITA] = 0;
+            espacio_compartido->estaciones[id].cargamento[IDX_KERNELIO]   = 0;
+            
             pthread_mutex_init(&espacio_compartido->estaciones[id].mutex, NULL); /* mutex independiente por estacion */
 
             espacio_compartido->map[espacio_compartido->estaciones[id].y][espacio_compartido->estaciones[id].x] = 'E';
@@ -355,11 +360,9 @@ void *loop_juego(void *param) {
                 box(modal, 0, 0);
                 mvwprintw(modal, 1, 2, "ADVERTENCIA");
                 mvwprintw(modal, 3, 2, "Estacion %d casi sin combustible!", espacio_compartido->estaciones[i].id);
-                mvwprintw(modal, 5, 5, "Presiona cualquier tecla...");
+                
                 wrefresh(modal);
-
-                // Esperar entrada
-                wgetch(modal);
+                sleep(2);
 
                 // Limpiar
                 delwin(modal);
@@ -375,7 +378,7 @@ void *loop_juego(void *param) {
         for (int i = 0; i < MAX_NAVES; i++) {
             if (espacio_compartido->naves[i].activa) {
                 if (espacio_compartido->naves[i].oxigeno > 0) {
-                    espacio_compartido->naves[i].oxigeno -= COSTO_MOVIMIENTO;
+                    espacio_compartido->naves[i].oxigeno --;
                     if (espacio_compartido->naves[i].oxigeno == 0) {
                         espacio_compartido->naves[i].activa = 0;
                         espacio_compartido->map[espacio_compartido->naves[i].y][espacio_compartido->naves[i].x] = 'X';
@@ -417,27 +420,18 @@ void place_asteroids(char map[][WIN_WIDTH]) {
 void loop_compras(int id, int arg1) {
     if (id < 0 || id >= MAX_NAVES) return;
     
-    while (1) {
-        sleep(1);
-        
-            if (espacio_compartido->naves[id].activa) {
-                for (int j = 0; j < NUM_STATIONS; j++) {
-                    if (espacio_compartido->estaciones[j].activa) {
-                        int dx = abs(espacio_compartido->naves[id].x - espacio_compartido->estaciones[j].x);
-                        int dy = abs(espacio_compartido->naves[id].y - espacio_compartido->estaciones[j].y);
-                        if (dx <= 1 && dy <= 1) {
-                            // La nave está adyacente a la estación j
-                            compra(id, j, arg1);
-
-                        }
-                    }
+    if (espacio_compartido->naves[id].activa) {
+        for (int j = 0; j < NUM_STATIONS; j++) {
+            if (espacio_compartido->estaciones[j].activa) {
+                int dx = abs(espacio_compartido->naves[id].x - espacio_compartido->estaciones[j].x);
+                int dy = abs(espacio_compartido->naves[id].y - espacio_compartido->estaciones[j].y);
+                if (dx <= 1 && dy <= 1) {
+                    // La nave está adyacente a la estación j
+                    compra(id, j, arg1);
                 }
-                
-               
             }
-        
+        }
     }
-    
 }
 
 void compra (int idNave, int idEstacion, int compra) {
