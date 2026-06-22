@@ -1,3 +1,24 @@
 [2026-06-21 13:36:06] Extraccion Asteroide: Nave 0 recolecto de Asteroide 6: Deuterio: 27, Mutexio: 7, Semaforita: 0, Kernelio: 3
 [2026-06-21 13:36:12] Extraccion Asteroide: Nave 0 recolecto de Asteroide 8: Deuterio: 25, Mutexio: 9, Semaforita: 4, Kernelio: 2
 [2026-06-21 13:36:21] Extraccion Nave Muerta: Nave 1 saqueo a Nave Muerta 0: Deuterio: 52, Mutexio: 16, Semaforita: 4, Kernelio: 5, Combustible: 0, Oxigeno: 86
+[2026-06-22 12:18:02] Extraccion Asteroide: Nave 0 recolecto de Asteroide 6: Deuterio: 46, Mutexio: 8, Semaforita: 6, Kernelio: 2
+[2026-06-22 12:18:04] Extraccion Asteroide: Nave 0 recolecto de Asteroide 2: Deuterio: 50, Mutexio: 5, Semaforita: 0, Kernelio: 3
+[2026-06-22 12:18:09] Extraccion Asteroide: Nave 0 recolecto de Asteroide 5: Deuterio: 45, Mutexio: 0, Semaforita: 4, Kernelio: 1
+[2026-06-22 12:18:11] Extraccion Asteroide: Nave 0 recolecto de Asteroide 7: Deuterio: 46, Mutexio: 7, Semaforita: 5, Kernelio: 0
+[2026-06-22 12:28:01] Extraccion Asteroide: Nave 0 recolecto de Asteroide 3: Deuterio: 31, Mutexio: 8, Semaforita: 8, Kernelio: 2
+[2026-06-22 12:28:05] Extraccion Asteroide: Nave 0 recolecto de Asteroide 5: Deuterio: 50, Mutexio: 7, Semaforita: 0, Kernelio: 0
+[2026-06-22 12:28:07] Extraccion Asteroide: Nave 0 recolecto de Asteroide 8: Deuterio: 24, Mutexio: 0, Semaforita: 5, Kernelio: 0
+[2026-06-22 12:59:00] Extraccion Asteroide: Nave 0 recolecto de Asteroide 9: Deuterio: 50, Mutexio: 0, Semaforita: 0, Kernelio: 3
+[2026-06-22 13:01:55] Extraccion Asteroide: Nave 0 recolecto de Asteroide 7: Deuterio: 30, Mutexio: 0, Semaforita: 7, Kernelio: 0
+[2026-06-22 13:01:59] Extraccion Asteroide: Nave 0 recolecto de Asteroide 3: Deuterio: 36, Mutexio: 0, Semaforita: 0, Kernelio: 3
+[2026-06-22 13:02:00] Extraccion Asteroide: Nave 0 recolecto de Asteroide 1: Deuterio: 24, Mutexio: 0, Semaforita: 8, Kernelio: 0
+[2026-06-22 15:06:32] Extraccion Asteroide: Nave 0 recolecto de Asteroide 8: Deuterio: 33, Mutexio: 9, Semaforita: 7, Kernelio: 2
+[2026-06-22 15:06:36] Extraccion Asteroide: Nave 0 recolecto de Asteroide 9: Deuterio: 25, Mutexio: 8, Semaforita: 8, Kernelio: 0
+[2026-06-22 15:07:06] Extraccion Asteroide: Nave 0 recolecto de Asteroide 3: Deuterio: 39, Mutexio: 10, Semaforita: 0, Kernelio: 1
+[2026-06-22 15:07:23] Extraccion Asteroide: Nave 1 recolecto de Asteroide 6: Deuterio: 45, Mutexio: 0, Semaforita: 0, Kernelio: 0
+[2026-06-22 15:07:27] Extraccion Nave Muerta: Nave 1 saqueo a Nave Muerta 0: Deuterio: 39, Mutexio: 10, Semaforita: 0, Kernelio: 1, Combustible: 0, Oxigeno: 58
+[2026-06-22 15:07:47] Extraccion Asteroide: Nave 1 recolecto de Asteroide 0: Deuterio: 40, Mutexio: 5, Semaforita: 0, Kernelio: 1
+[2026-06-22 15:07:52] Extraccion Asteroide: Nave 1 recolecto de Asteroide 2: Deuterio: 20, Mutexio: 0, Semaforita: 0, Kernelio: 3
+[2026-06-22 15:14:42] Extraccion Asteroide: Nave 0 recolecto de Asteroide 7: Deuterio: 24, Mutexio: 5, Semaforita: 0, Kernelio: 0
+[2026-06-22 15:14:55] Extraccion Asteroide: Nave 0 recolecto de Asteroide 3: Deuterio: 20, Mutexio: 7, Semaforita: 0, Kernelio: 0
+[2026-06-22 15:15:10] Extraccion Asteroide: Nave 0 recolecto de Asteroide 9: Deuterio: 42, Mutexio: 0, Semaforita: 0, Kernelio: 0
