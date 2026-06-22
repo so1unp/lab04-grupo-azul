@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
 
     // Creacion memoria compartida
     int shm_fd;
-    shm_fd = shm_open(SHM_MAP_PATH, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+    shm_fd = shm_open(SHM_MAP_PATH, O_CREAT | O_RDWR, 0666);
     if (shm_fd < 0) {
         perror("Error al crear la memoria compartida");
         exit(1);
