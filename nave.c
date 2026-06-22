@@ -25,9 +25,9 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, Espaci
         for (int x = 1; x < WIN_WIDTH - 1; x++) {
 
              if (y < WIN_ALERT_HEIGHT - 1) {
-                mvwaddch(alert_win, y, x, espacio_compartido->mapAlert[y][x]);
+                mvwaddch(alert_win, y, x, (chtype)(unsigned char)espacio_compartido->mapAlert[y][x]);
             }
-            mvwaddch(map_win, y, x, espacio_compartido->map[y][x]);
+            mvwaddch(map_win, y, x, (chtype)(unsigned char)espacio_compartido->map[y][x]);
         }
     }
 
