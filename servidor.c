@@ -44,7 +44,8 @@ void *loop_estacion(void *param);
 
 void place_asteroids(char map[][WIN_WIDTH]);
 void manejo_nave(char tipo, int id, int arg1, int arg2);
-void loop_compras(int id, int arg1);
+void logica_compra
+(int id, int arg1);
 void compra (int idNave, int idEstacion, int compra);
 void vender(int idNave, int idEstacion);
 void compraCombustible(int idNave, int idEstacion);
@@ -67,7 +68,15 @@ static int buscar_asteroide(int nx, int ny) {
     }
     return -1;
 }
-
+static int buscar_estacion(int nx, int ny) {
+    for (int i = 0; i < NUM_STATIONS; i++) {
+        if (espacio_compartido->estaciones[i].activa &&
+            espacio_compartido->estaciones[i].x == nx &&
+            espacio_compartido->estaciones[i].y == ny)
+            return i;
+    }
+    return -1;
+}
 /* Busca el índice de la nave en la posición (nx, ny). Retorna -1 si no lo encuentra */
 static int buscar_nave(int nx, int ny) {
     for (int i = 0; i < MAX_NAVES; i++) {
@@ -77,6 +86,7 @@ static int buscar_nave(int nx, int ny) {
     }
     return -1;
 }
+
 
 /* Extrae los minerales del asteroide y los guarda en el cargamento de la nave.
    Lock solo sobre el asteroide tocado, otros asteroides siguen libres. */
@@ -120,6 +130,7 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
     log_transaccion_asteroide(nave_id, idx, d, m, s, k);
 }
 
+
 void crearEstacion(char tipo, int id) {
     if (id < 0 || id >= NUM_STATIONS) return;
      
@@ -140,7 +151,9 @@ void crearEstacion(char tipo, int id) {
             espacio_compartido->estaciones[id].oxigeno     = OXIGENO_INICIAL_ESTACION;
             espacio_compartido->estaciones[id].billetera   = BILLETERA_INICIAL;
             espacio_compartido->estaciones[id].activa      = 1;
-            espacio_compartido->estaciones[id].hangar      = HANGAR;
+            for (int i = 0; i < HANGAR; i++) {
+                espacio_compartido->estaciones[id].hangar[i] = -1; // Inicializa el hangar con -1 indicando que está vacío
+            }
             espacio_compartido->estaciones[id].simbolo     = 'E';
             espacio_compartido->estaciones[id].cargamento[IDX_DEUTERIO]   = 0;
             espacio_compartido->estaciones[id].cargamento[IDX_MUTEXIO]    = 0;
@@ -150,6 +163,13 @@ void crearEstacion(char tipo, int id) {
             pthread_mutex_init(&espacio_compartido->estaciones[id].mutex, NULL); /* mutex independiente por estacion */
 
             espacio_compartido->map[espacio_compartido->estaciones[id].y][espacio_compartido->estaciones[id].x] = 'E';
+        }
+    }
+}
+void formateoWinAlert(){
+    for (int y = 0; y < WIN_ALERT_HEIGHT; y++) {
+        for (int x = 0; x < WIN_WIDTH; x++) {
+            espacio_compartido->mapAlert[y][x] = ' ';
         }
     }
 }
@@ -238,6 +258,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    formateoWinAlert();
+
     /* Inicializa asteroides y sus mutexes individuales */
     place_asteroids(espacio_compartido->map);
 
@@ -283,7 +305,7 @@ int main(int argc, char *argv[]) {
     pthread_create(&t_printer,  NULL, print_map,  (void *)&m_data);
     pthread_create(&t_game,     NULL, loop_juego, NULL);
     pthread_create(&t_estacion, NULL, loop_estacion, NULL);
-    //pthread_create(&t_compras,  NULL, loop_compras, NULL);
+    //pthread_create(&t_compras,  NULL, logica_compra, NULL);
 
     while (1) {
         int ch = wgetch(win);
@@ -342,7 +364,8 @@ void *receive_mq(void *param) {
             }
 
             if (entidad == 'N' && tipo == 'C') {
-                loop_compras(id, arg1);
+                logica_compra
+                (id, arg1);
             }
 
             if (entidad == 'E') {
@@ -359,7 +382,7 @@ void *print_map(void *param) {
         for (int i = 0; i < WIN_HEIGHT; i++) {
             for (int i_x = 0; i_x < WIN_WIDTH; i_x++) {
 
-                if(i < WIN_ALERT_HEIGHT) {
+                if (i < WIN_ALERT_HEIGHT - 1) {
                     wmove(data->winAlert, i, i_x);
                     wprintw(data->winAlert, "%c", espacio_compartido->mapAlert[i][i_x]);
                 }
@@ -386,23 +409,29 @@ void *loop_juego(void *param) {
                 espacio_compartido->estaciones[i].combustible -= COSTO_MOVIMIENTO;
                 
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
-            }
-            if (espacio_compartido->estaciones[i].combustible == 20) {
             
-                werase(winAlert);
-                box(winAlert, 0, 0);
-                mvwprintw(winAlert, 1, 2, "ADVERTENCIA");
-                mvwprintw(winAlert, 3, 2, "Estacion %d casi sin combustible!", id);
-                wrefresh(winAlert);
-
+            if (espacio_compartido->estaciones[i].combustible == 95) {
                 
+                formateoWinAlert();
+
+                char msg[WIN_WIDTH];
+
+                sprintf(msg, "      ADVERTENCIA: Estacion %d casi sin combustible!", i);
+                
+                for (int x = 0; x < WIN_WIDTH - 1 && msg[x] != '\0'; x++) {
+                    espacio_compartido->mapAlert[3][x] = msg[x];
+                }
+                 
             }
+         
             if (espacio_compartido->estaciones[i].combustible <= 0) {
                 espacio_compartido->estaciones[i].activa = 0;
             }
-        
-        
+
         }
+         }
+        
+        
 
         for (int i = 0; i < MAX_NAVES; i++) {
             if (espacio_compartido->naves[i].activa) {
@@ -416,8 +445,9 @@ void *loop_juego(void *param) {
             }
         }
     }
-   
 }
+   
+
 
 void place_asteroids(char map[][WIN_WIDTH]) {
     int placed = 0;
@@ -446,7 +476,8 @@ void place_asteroids(char map[][WIN_WIDTH]) {
     }
 }
 
-void loop_compras(int id, int compraNum) {
+void logica_compra
+(int id, int compraNum) {
     if (id < 0 || id >= MAX_NAVES) return;
     
     if (espacio_compartido->naves[id].activa) {
@@ -454,6 +485,7 @@ void loop_compras(int id, int compraNum) {
             if (espacio_compartido->estaciones[j].activa) {
                 int dx = abs(espacio_compartido->naves[id].x - espacio_compartido->estaciones[j].x);
                 int dy = abs(espacio_compartido->naves[id].y - espacio_compartido->estaciones[j].y);
+
                 if (dx <= 1 && dy <= 1) {
                     // La nave está adyacente a la estación j
                     compra(id, j, compraNum);
@@ -556,12 +588,85 @@ void *loop_estacion(void *param) {
                 espacio_compartido->estaciones[i].cargamento[IDX_KERNELIO]=0;
                 
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
+                
+                for(int j=0; j<MAX_NAVES; j++) {
+                    if (!espacio_compartido->naves[j].activa)
+                    {
+                        // Si la nave no está activa, se asegura de que no esté en el hangar
+                        for(int k = 0; k<HANGAR; k++){
+                            if(espacio_compartido->estaciones[i].hangar[k] == espacio_compartido->naves[j].id) {
+                                
+                                pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
+                                espacio_compartido->naves[j].hangar = 0;
+                                pthread_mutex_unlock(&espacio_compartido->naves[j].mutex);
+                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
+                                espacio_compartido->estaciones[i].hangar[k] = -1;
+                                pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
+
+                            }
+                        }
+                        continue;
+                    }
+                    
+                    int dx = abs(espacio_compartido->naves[j].x - espacio_compartido->estaciones[i].x);
+                    int dy = abs(espacio_compartido->naves[j].y - espacio_compartido->estaciones[i].y);
+                    
+                    if (dx <= 1 && dy <= 1) {
+
+                        // La nave j está adyacente a la estación i
+                        for(int k = 0; k<HANGAR; k++){
+                            if(espacio_compartido->estaciones[i].hangar[k] == -1) {
+                                
+                                pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
+                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
+                                espacio_compartido->estaciones[i].hangar[k] = espacio_compartido->naves[j].id;
+                                espacio_compartido->naves[j].hangar = 1;
+                                pthread_mutex_unlock(&espacio_compartido->naves[j].mutex);
+                                pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
+                                
+                            }
+                        }
+                            if(espacio_compartido->naves[j].hangar == 0) {
+                                formateoWinAlert();
+
+                                char msg[WIN_WIDTH];
+
+                                sprintf(msg, "      ADVERTENCIA: Estacion %d Sin Espacio en hangar", i);
+                
+                                 for (int x = 0; x < WIN_WIDTH - 1 && msg[x] != '\0'; x++) {
+                                    espacio_compartido->mapAlert[3][x] = msg[x];
+                                }
+                 
+                            }
+
+                        
+
+                        
+                     }else {
+                        // La nave j NO está adyacente a la estación i, se asegura de que no esté en el hangar
+                        for(int k = 0; k<HANGAR; k++){
+
+                            if(espacio_compartido->estaciones[i].hangar[k] == espacio_compartido->naves[j].id) {
+
+                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
+                                espacio_compartido->estaciones[i].hangar[k] = -1;
+                                pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
+
+                            }
+                        }
+    
+                }
+
+                    
+                }
+            
+        
             }
         }
     }
     
-}
 
+}
 void manejo_nave(char tipo, int id, int arg1, int arg2) {
     if (id < 0 || id >= MAX_NAVES) return;
 
@@ -575,6 +680,7 @@ void manejo_nave(char tipo, int id, int arg1, int arg2) {
             espacio_compartido->naves[id].escudo      = ESCUDO_INICIAL;
             espacio_compartido->naves[id].activa      = 1;
             espacio_compartido->naves[id].simbolo     = 'N';
+            espacio_compartido->naves[id].hangar      = 0;
             pthread_mutex_init(&espacio_compartido->naves[id].mutex, NULL); /* mutex independiente por nave */
 
             espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = 'N';
@@ -607,6 +713,11 @@ void manejo_nave(char tipo, int id, int arg1, int arg2) {
             else if (espacio_compartido->map[ny][nx] == 'X') {
                 /* La nave chocó con una nave muerta, extrae sus minerales */
                 extraer_nave_muerta(id, nx, ny);
+            }
+            else if (espacio_compartido->map[ny][nx] == 'E'&& espacio_compartido->naves[id].hangar == 1) {
+                /* La nave chocó con una estación*/
+                
+                compra(id,buscar_estacion(nx, ny), 0);
             }
         }
     }

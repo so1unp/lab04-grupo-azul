@@ -9,7 +9,7 @@
 #define WIN_WIDTH  90
 #define WIN_HEIGHT 30
 
-#define WIN_ALERT_HEIGHT 10
+#define WIN_ALERT_HEIGHT 8
 
 #define NUM_STATIONS  2
 #define NUM_ASTEROIDS 10

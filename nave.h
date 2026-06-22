@@ -32,6 +32,7 @@ typedef struct {
     int  escudo;
     int  activa;
     char simbolo;
+    bool hangar ;
     pthread_mutex_t mutex;  /* un mutex por nave */
 } Nave;
 

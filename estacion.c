@@ -24,7 +24,7 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, Espaci
         
         for (int x = 1; x < WIN_WIDTH - 1; x++) {
 
-             if(y<WIN_ALERT_HEIGHT){
+             if (y < WIN_ALERT_HEIGHT - 1) {
                 mvwaddch(alert_win, y, x, espacio_compartido->mapAlert[y][x]);
             }
             mvwaddch(map_win, y, x, espacio_compartido->map[y][x]);
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
     curs_set(0);
 
     WINDOW *map_win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
-    WINDOW *alert_win = newwin(WIN_ALERT_HEIGHT, WIN_ALERT_WIDTH, WIN_HEIGHT, 0);
+    WINDOW *alert_win = newwin(WIN_ALERT_HEIGHT, WIN_WIDTH, WIN_HEIGHT, 0);
     WINDOW *info_win = newwin(20, 46, 0, WIN_WIDTH);
     wtimeout(map_win, 100);
 
