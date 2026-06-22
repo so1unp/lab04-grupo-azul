@@ -292,7 +292,7 @@ int main(int argc, char *argv[]) {
 
     // Reinicia la cola de mensajes
     mq_unlink(RECEIVER_MESSAGE_QUEUE);
-    if ((receiver = mq_open(RECEIVER_MESSAGE_QUEUE, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, &attr)) == -1) {
+    if ((receiver = mq_open(RECEIVER_MESSAGE_QUEUE, O_CREAT | O_RDWR, 0666, &attr)) == -1) {
         perror("Error al abrir la cola de mensajes");
         exit(1);
     }
