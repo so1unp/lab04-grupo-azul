@@ -15,6 +15,7 @@
 #define OXIGENO_INICIAL_ESTACION      50
 #define BILLETERA_INICIAL   0
 
+#define ALERTA_COMBUSTIBLE 50
 typedef struct {
     int  id;
     int  x; 
@@ -26,6 +27,7 @@ typedef struct {
     char simbolo;
     int  hangar[HANGAR];
     int  billetera;
+    bool alerta;
     pthread_mutex_t mutex;  /* un mutex por estacion */
     
 } Estacion;
