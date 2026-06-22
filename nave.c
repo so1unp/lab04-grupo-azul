@@ -13,6 +13,7 @@
 
 void mostrar_info(WINDOW *win, const Nave *nave);
 
+/* Función para dibujar el mapa y la información de la nave */
 static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, EspacioCompartido *espacio_compartido, int my_id) {
     werase(map_win);
     werase(alert_win);
@@ -42,12 +43,14 @@ int main(int argc, char *argv[]) {
         printf("Uso: %s <id_nave> (0-%d)\n", argv[0], MAX_NAVES - 1);
         return 1;
     }
+
     int my_id = atoi(argv[1]);
     if (my_id < 0 || my_id >= MAX_NAVES) {
         printf("ID de nave invalido (0-%d)\n", MAX_NAVES - 1);
         return 1;
     }
 
+    /* Creación e inicialización de la memoria compartida */
     int shm_fd;
     size_t total_shm_size = sizeof(EspacioCompartido);
     EspacioCompartido *espacio_compartido;
@@ -58,6 +61,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Mapeo memoria compartida
     espacio_compartido = mmap(NULL, total_shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     if (espacio_compartido == MAP_FAILED) {
         perror("Error en mmap");
@@ -65,6 +69,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Crear cola de mensajes
     mqd_t sender;
     if ((sender = mq_open(RECEIVER_MESSAGE_QUEUE, O_WRONLY)) == -1) {
         perror("Error al conectar con la cola del servidor");
@@ -77,17 +82,20 @@ int main(int argc, char *argv[]) {
     sprintf(msg, "I N %d", my_id);
     mq_send(sender, msg, strlen(msg), 0);
 
+    // Inicialización NCURSES
     initscr();
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
 
+    // Creación ventanas
     WINDOW *map_win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
     WINDOW *alert_win = newwin(WIN_ALERT_HEIGHT, WIN_WIDTH, WIN_HEIGHT, 0);
     WINDOW *info_win = newwin(14, 35, 0, WIN_WIDTH + 2);
     wtimeout(map_win, 100);
 
+    // Loop principal
     int salir = 0;
     while (!salir) {
         dibujar(map_win, info_win, alert_win, espacio_compartido, my_id);
@@ -133,6 +141,7 @@ int main(int argc, char *argv[]) {
     exit(EXIT_SUCCESS);
 }
 
+/* Función para mostrar información de la nave */
 void mostrar_info(WINDOW *win, const Nave *nave) {
     if (win == NULL || nave == NULL) {
         return;
