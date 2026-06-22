@@ -389,11 +389,11 @@ void *loop_juego(void *param) {
             }
             if (espacio_compartido->estaciones[i].combustible == 20) {
             
-                werase(espacio_compartido->winAlert);
-                box(espacio_compartido->winAlert, 0, 0);
-                mvwprintw(espacio_compartido->winAlert, 1, 2, "ADVERTENCIA");
-                mvwprintw(espacio_compartido->winAlert, 3, 2, "Estacion %d casi sin combustible!", espacio_compartido->estaciones[i].id);
-                wrefresh(espacio_compartido->winAlert);
+                werase(winAlert);
+                box(winAlert, 0, 0);
+                mvwprintw(winAlert, 1, 2, "ADVERTENCIA");
+                mvwprintw(winAlert, 3, 2, "Estacion %d casi sin combustible!", id);
+                wrefresh(winAlert);
 
                 
             }
@@ -444,7 +444,7 @@ void place_asteroids(char map[][WIN_WIDTH]) {
         map[row][col] = ASTEROID_SYMBOL;
         placed++;
     }
-} 
+}
 
 void loop_compras(int id, int compraNum) {
     if (id < 0 || id >= MAX_NAVES) return;
