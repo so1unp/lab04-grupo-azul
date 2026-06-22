@@ -297,6 +297,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    fchmod(receiver, 0666);
     // Inicialización NCURSES
     initscr();
     nodelay(stdscr, TRUE);
