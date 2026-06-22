@@ -283,6 +283,7 @@ int main(int argc, char *argv[]) {
     place_asteroids(espacio_compartido->map);
 
     // Msg queue receiver
+    mode_t umask_anterior = umask(0);
     mqd_t receiver;
     struct mq_attr attr;
     attr.mq_flags   = 0;
@@ -297,7 +298,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    fchmod(receiver, 0666);
+    umask(umask_anterior);
     // Inicialización NCURSES
     initscr();
     nodelay(stdscr, TRUE);
