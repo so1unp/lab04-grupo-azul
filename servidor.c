@@ -27,14 +27,14 @@ pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct {
     WINDOW *win;
-    WINDOW *alert_win;
+    WINDOW *winAlert;
     mqd_t receiver;
     char *buff;
 } ReceiverData;
 
 typedef struct {
     WINDOW *win;
-    WINDOW *alert_win;
+    WINDOW *winAlert;
 } MapData;
 
 void *receive_mq(void *param);
@@ -269,14 +269,14 @@ int main(int argc, char *argv[]) {
 
     ReceiverData r_data = {
         .win      = win,
-        .alert_win = winAlert,
+        .winAlert = winAlert,
         .receiver = receiver,
         .buff     = buff
     };
 
     MapData m_data = {
         .win = win,
-        .alert_win = winAlert
+        .winAlert = winAlert
     };
 
     pthread_create(&t_receiver, NULL, receive_mq, (void *)&r_data);
@@ -360,8 +360,8 @@ void *print_map(void *param) {
             for (int i_x = 0; i_x < WIN_WIDTH; i_x++) {
 
                 if(i < WIN_ALERT_HEIGHT) {
-                    wmove(data->alert_win, i, i_x);
-                    wprintw(data->alert_win, "%c", espacio_compartido->mapAlert[i][i_x]);
+                    wmove(data->winAlert, i, i_x);
+                    wprintw(data->winAlert, "%c", espacio_compartido->mapAlert[i][i_x]);
                 }
                 wmove(data->win, i, i_x);
                 wprintw(data->win, "%c", espacio_compartido->map[i][i_x]);
@@ -370,7 +370,7 @@ void *print_map(void *param) {
         box(data->winAlert, 0, 0);
         box(data->win, 0, 0);
         wrefresh(data->win);
-        wrefresh(data->alert_win);
+        wrefresh(data->winAlert);
         usleep(100000);
     }
    
