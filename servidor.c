@@ -393,6 +393,7 @@ void *loop_juego(void *param) {
                 box(espacio_compartido->winAlert, 0, 0);
                 mvwprintw(espacio_compartido->winAlert, 1, 2, "ADVERTENCIA");
                 mvwprintw(espacio_compartido->winAlert, 3, 2, "Estacion %d casi sin combustible!", espacio_compartido->estaciones[i].id);
+                wrefresh(espacio_compartido->winAlert);
 
                 
             }
