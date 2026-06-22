@@ -9,8 +9,7 @@
 #define WIN_WIDTH  90
 #define WIN_HEIGHT 30
 
-#define WIN_ALERT_WIDTH 40
-#define WIN_ALERT_HEIGHT 7
+#define WIN_ALERT_HEIGHT 8
 
 #define NUM_STATIONS  2
 #define NUM_ASTEROIDS 10
@@ -19,6 +18,9 @@
 #define price_mutexio       15
 #define price_semaforita    40
 #define price_kernelio      55
+
+#define price_deuterio      2
+
 
 #define price_oxigeno       20
 #define price_reparar       25
@@ -30,6 +32,7 @@
 
 typedef struct {
     char map[WIN_HEIGHT][WIN_WIDTH];
+    char mapAlert[WIN_ALERT_HEIGHT][WIN_WIDTH];
     Nave naves[MAX_NAVES];
     Estacion estaciones[NUM_STATIONS];
 } EspacioCompartido;

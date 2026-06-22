@@ -14,16 +14,26 @@
 void mostrar_info(WINDOW *win, const Nave *nave);
 
 /* Función para dibujar el mapa y la información de la nave */
-static void dibujar(WINDOW *map_win, WINDOW *info_win, EspacioCompartido *espacio_compartido, int my_id) {
+static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, EspacioCompartido *espacio_compartido, int my_id) {
     werase(map_win);
+    werase(alert_win);
     box(map_win, 0, 0);
+    box(alert_win, 0, 0);
+
 
     for (int y = 1; y < WIN_HEIGHT - 1; y++) {
+        
         for (int x = 1; x < WIN_WIDTH - 1; x++) {
-            mvwaddch(map_win, y, x, espacio_compartido->map[y][x]);
+
+             if (y < WIN_ALERT_HEIGHT - 1) {
+                mvwaddch(alert_win, y, x, (chtype)(unsigned char)espacio_compartido->mapAlert[y][x]);
+            }
+            mvwaddch(map_win, y, x, (chtype)(unsigned char)espacio_compartido->map[y][x]);
         }
     }
+
     wrefresh(map_win);
+    wrefresh(alert_win);
 
     mostrar_info(info_win, &espacio_compartido->naves[my_id]);
 }
@@ -81,13 +91,14 @@ int main(int argc, char *argv[]) {
 
     // Creación ventanas
     WINDOW *map_win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
+    WINDOW *alert_win = newwin(WIN_ALERT_HEIGHT, WIN_WIDTH, WIN_HEIGHT, 0);
     WINDOW *info_win = newwin(14, 35, 0, WIN_WIDTH + 2);
     wtimeout(map_win, 100);
 
     // Loop principal
     int salir = 0;
     while (!salir) {
-        dibujar(map_win, info_win, espacio_compartido, my_id);
+        dibujar(map_win, info_win, alert_win, espacio_compartido, my_id);
 
         int tecla = wgetch(map_win);
         int dx = 0, dy = 0;
@@ -99,7 +110,7 @@ int main(int argc, char *argv[]) {
             case 'a': dx = -1; break;
             case 'd': dx = 1; break;
             case 'q': salir = 1; break;
-            case 'v': compra = 0; break;
+            //case 'v': compra = 0; break;
             case 'e': compra = 1; break;
             case '1': compra = 2; break;
             case '2': compra = 3; break;
@@ -120,6 +131,7 @@ int main(int argc, char *argv[]) {
 
     werase(map_win);
     werase(info_win);
+    werase(alert_win);
     endwin();
 
     mq_close(sender);
