@@ -444,7 +444,7 @@ void place_asteroids(char map[][WIN_WIDTH]) {
         map[row][col] = ASTEROID_SYMBOL;
         placed++;
     }
-}
+} 
 
 void loop_compras(int id, int compraNum) {
     if (id < 0 || id >= MAX_NAVES) return;
