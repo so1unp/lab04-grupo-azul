@@ -27,12 +27,14 @@ pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct {
     WINDOW *win;
+    WINDOW *alert_win;
     mqd_t receiver;
     char *buff;
 } ReceiverData;
 
 typedef struct {
     WINDOW *win;
+    WINDOW *alert_win;
 } MapData;
 
 void *receive_mq(void *param);
@@ -258,17 +260,22 @@ int main(int argc, char *argv[]) {
     refresh();
 
     win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
+    winAlert = newwin(WIN_ALERT_HEIGHT, WIN_ALERT_WIDTH, WIN_HEIGHT, 0);
     box(win, 0, 0);
+    box(winAlert, 0, 0);
     wrefresh(win);
+    wrefresh(winAlert);
 
     ReceiverData r_data = {
         .win      = win,
+        .alert_win = winAlert,
         .receiver = receiver,
         .buff     = buff
     };
 
     MapData m_data = {
-        .win = win
+        .win = win,
+        .alert_win = winAlert
     };
 
     pthread_create(&t_receiver, NULL, receive_mq, (void *)&r_data);
@@ -284,6 +291,7 @@ int main(int argc, char *argv[]) {
     }
 
     werase(win);
+    werase(winAlert);
     endwin();
 
     pthread_cancel(t_receiver);
@@ -349,12 +357,19 @@ void *print_map(void *param) {
     while (1) {
         for (int i = 0; i < WIN_HEIGHT; i++) {
             for (int i_x = 0; i_x < WIN_WIDTH; i_x++) {
+
+                if(i < WIN_ALERT_HEIGHT) {
+                    wmove(data->alert_win, i, i_x);
+                    wprintw(data->alert_win, "%c", espacio_compartido->mapAlert[i][i_x]);
+                }
                 wmove(data->win, i, i_x);
                 wprintw(data->win, "%c", espacio_compartido->map[i][i_x]);
             }
         }
+        box(data->winAlert, 0, 0);
         box(data->win, 0, 0);
         wrefresh(data->win);
+        wrefresh(data->alert_win);
         usleep(100000);
     }
    
@@ -372,19 +387,13 @@ void *loop_juego(void *param) {
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
             }
             if (espacio_compartido->estaciones[i].combustible == 20) {
-                int start_y = (WIN_HEIGHT - WIN_ALERT_HEIGHT) / 2;
-                int start_x = (WIN_WIDTH - WIN_ALERT_WIDTH) / 2;
+            
+                werase(espacio_compartido->winAlert);
+                box(espacio_compartido->winAlert, 0, 0);
+                mvwprintw(espacio_compartido->winAlert, 1, 2, "ADVERTENCIA");
+                mvwprintw(espacio_compartido->winAlert, 3, 2, "Estacion %d casi sin combustible!", espacio_compartido->estaciones[i].id);
 
-                WINDOW *modal = newwin(WIN_ALERT_HEIGHT, WIN_ALERT_WIDTH, start_y, start_x);
-                box(modal, 0, 0);
-                mvwprintw(modal, 1, 2, "ADVERTENCIA");
-                mvwprintw(modal, 3, 2, "Estacion %d casi sin combustible!", espacio_compartido->estaciones[i].id);
                 
-                wrefresh(modal);
-                sleep(2);
-
-                // Limpiar
-                delwin(modal);
             }
             if (espacio_compartido->estaciones[i].combustible <= 0) {
                 espacio_compartido->estaciones[i].activa = 0;
