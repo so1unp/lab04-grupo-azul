@@ -266,7 +266,7 @@ int main(int argc, char *argv[]) {
         shm_unlink(SHM_MAP_PATH);
         exit(1);
     }
-
+    fchmod(shm_fd, 0666);
     // Inicializa el espacio compartido
     memset(espacio_compartido, 0, total_shm_size);
 
