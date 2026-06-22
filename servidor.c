@@ -203,6 +203,7 @@ int main(int argc, char *argv[]) {
     srand((unsigned int)time(NULL));
 
     WINDOW *win;
+    WINDOW *winAlert;
     pthread_t t_receiver, t_printer, t_game, t_estacion;
     char buff[BUFF_SIZE];
     size_t total_shm_size = sizeof(EspacioCompartido);
