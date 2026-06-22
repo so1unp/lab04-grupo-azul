@@ -159,6 +159,8 @@ void crearEstacion(char tipo, int id) {
             espacio_compartido->estaciones[id].oxigeno     = OXIGENO_INICIAL_ESTACION;
             espacio_compartido->estaciones[id].billetera   = BILLETERA_INICIAL;
             espacio_compartido->estaciones[id].activa      = 1;
+            espacio_compartido->estaciones[id].alerta      = false;
+
             for (int i = 0; i < HANGAR; i++) {
                 espacio_compartido->estaciones[id].hangar[i] = -1; // Inicializa el hangar con -1 indicando que está vacío
             }
@@ -438,8 +440,8 @@ void *loop_juego(void *param) {
                 
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
             
-            if (espacio_compartido->estaciones[i].combustible == 95) {
-                
+            if (espacio_compartido->estaciones[i].combustible == ALERTA_COMBUSTIBLE) {
+                espacio_compartido->estaciones[i].alerta = true;
                 formateoWinAlert();
 
                 char msg[WIN_WIDTH];
@@ -565,7 +567,7 @@ void vender(int idNave, int idEstacion) {
 }
 
 void compraCombustible(int idNave, int idEstacion) {
-    if (espacio_compartido->estaciones[idEstacion].combustible > 20 && espacio_compartido->naves[idNave].combustible < COMBUSTIBLE_INICIAL) {
+    if (espacio_compartido->estaciones[idEstacion].combustible > ALERTA_COMBUSTIBLE && espacio_compartido->naves[idNave].combustible < COMBUSTIBLE_INICIAL) {
         espacio_compartido->estaciones[idEstacion].combustible --;
         espacio_compartido->naves[idNave].combustible ++;
     }
@@ -609,7 +611,7 @@ void *loop_estacion(void *param) {
                
                 pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
 
-                espacio_compartido->estaciones[i].combustible += espacio_compartido->estaciones[i].cargamento[IDX_DEUTERIO] ;
+                espacio_compartido->estaciones[i].combustible += espacio_compartido->estaciones[i].cargamento[IDX_DEUTERIO]*price_deuterio ;
                 espacio_compartido->estaciones[i].billetera += espacio_compartido->estaciones[i].cargamento[IDX_MUTEXIO]*price_mutexio ;
                 espacio_compartido->estaciones[i].billetera += espacio_compartido->estaciones[i].cargamento[IDX_SEMAFORITA]*price_semaforita ;
                 espacio_compartido->estaciones[i].billetera += espacio_compartido->estaciones[i].cargamento[IDX_KERNELIO]*price_kernelio ;
@@ -619,6 +621,11 @@ void *loop_estacion(void *param) {
                 espacio_compartido->estaciones[i].cargamento[IDX_SEMAFORITA]=0;
                 espacio_compartido->estaciones[i].cargamento[IDX_KERNELIO]=0;
                 
+                if(espacio_compartido->estaciones[i].alerta == false) {
+                    
+                    formateoWinAlert();
+                    
+                }
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
                 
                 for(int j=0; j<MAX_NAVES; j++) {
@@ -628,13 +635,12 @@ void *loop_estacion(void *param) {
                         for(int k = 0; k<HANGAR; k++){
                             if(espacio_compartido->estaciones[i].hangar[k] == espacio_compartido->naves[j].id) {
                                 
+                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
                                 pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
+                                espacio_compartido->estaciones[i].hangar[k] = -1;
                                 espacio_compartido->naves[j].hangar = 0;
                                 pthread_mutex_unlock(&espacio_compartido->naves[j].mutex);
-                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
-                                espacio_compartido->estaciones[i].hangar[k] = -1;
                                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
-
                             }
                         }
                         continue;
@@ -648,13 +654,15 @@ void *loop_estacion(void *param) {
                         // La nave j está adyacente a la estación i
                         for(int k = 0; k<HANGAR; k++){
                             if(espacio_compartido->estaciones[i].hangar[k] == -1) {
-                                
-                                pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
+
                                 pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
+                                pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
+                                
                                 espacio_compartido->estaciones[i].hangar[k] = espacio_compartido->naves[j].id;
                                 espacio_compartido->naves[j].hangar = 1;
-                                pthread_mutex_unlock(&espacio_compartido->naves[j].mutex);
                                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
+                                pthread_mutex_unlock(&espacio_compartido->naves[j].mutex);
+                                
                                 
                             }
                         }
@@ -681,9 +689,13 @@ void *loop_estacion(void *param) {
                             if(espacio_compartido->estaciones[i].hangar[k] == espacio_compartido->naves[j].id) {
 
                                 pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
+                                pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
+                                espacio_compartido->naves[j].hangar = 0;
                                 espacio_compartido->estaciones[i].hangar[k] = -1;
+                                pthread_mutex_unlock(&espacio_compartido->naves[j].mutex);
                                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
-
+                                
+                                formateoWinAlert();
                             }
                         }
     

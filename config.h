@@ -19,6 +19,9 @@
 #define price_semaforita    40
 #define price_kernelio      55
 
+#define price_deuterio      2
+
+
 #define price_oxigeno       20
 #define price_reparar       25
 #define price_condimento    500
