@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
     refresh();
 
     win = newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0);
-    winAlert = newwin(WIN_ALERT_HEIGHT, WIN_ALERT_WIDTH, WIN_HEIGHT, 0);
+    winAlert = newwin(WIN_ALERT_HEIGHT, WIN_WIDTH, WIN_HEIGHT, 0);
     box(win, 0, 0);
     box(winAlert, 0, 0);
     wrefresh(win);
