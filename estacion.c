@@ -14,9 +14,11 @@
 
 void mostrar_info(WINDOW *win, const Estacion *estacion);
 
+volatile sig_atomic_t terminate_flag = 0;
+
 void manejador_sigterm(int sig) {
-    
-    finalizar_proceso();
+    (void)sig;  // Evitar advertencia de variable no utilizada
+    terminate_flag = 1;
 }
 
 /* Función para dibujar el mapa y la información de la estación */
@@ -44,22 +46,10 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, Espaci
 
     mostrar_info(info_win, &espacio_compartido->estaciones[my_id]);
 }
-void finalizar_proceso(){
 
-    werase(map_win);
-    werase(alert_win);
-    werase(info_win);
-    endwin();
 
-    mq_close(sender);
-    munmap(espacio_compartido, total_shm_size);
-    close(shm_fd);
 
-    exit(EXIT_SUCCESS);
-    
-}
-
-int main(/* int argc, /* char *argv[] * *//) {
+int main() {
     /* if (argc < 2) {
         printf("Uso: %s <id_estacion> (0-%d)\n", argv[0], NUM_STATIONS - 1);
         return 1;
@@ -92,7 +82,7 @@ int main(/* int argc, /* char *argv[] * *//) {
     bool createEstacion=0;
     for (int i = 0; i < NUM_STATIONS    &&  createEstacion==0; i++) {
         
-        if(espacio_compartido->estaciones[i].id == -1){
+        if(espacio_compartido->estaciones[i].simbolo == 'E'){
             createEstacion=1;
             
         }
@@ -142,7 +132,7 @@ int main(/* int argc, /* char *argv[] * *//) {
 
     // Loop principal
     int salir = 0;
-    while (!salir) {
+    while (!salir || !terminate_flag) {
 
         dibujar(map_win, info_win, alert_win, espacio_compartido, my_id);
         //dibujar_alerta(alert_win, espacio_compartido, my_id);
@@ -153,7 +143,16 @@ int main(/* int argc, /* char *argv[] * *//) {
 
     }
 
-    finalizar_proceso();
+    werase(map_win);
+    werase(alert_win);
+    werase(info_win);
+    endwin();
+
+    mq_close(sender);
+    munmap(espacio_compartido, total_shm_size);
+    close(shm_fd);
+
+    exit(EXIT_SUCCESS);
 }
 
 /* Función para mostrar información de la estación */
@@ -192,3 +191,4 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
 
     wrefresh(win);
 }
+

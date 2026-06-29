@@ -14,6 +14,8 @@
 #include "config.h"
 #include "nave.h"
 #include "estacion.h"
+#include <signal.h>
+#include <sys/types.h>
 
 // Definiciones de tamaño buffer, simbolo de asteroide y archivo para bitacora
 #define BUFF_SIZE 1024
@@ -22,7 +24,8 @@
 
 // Variable global para los asteroides
 
-Asteroide *asteroides[];
+Asteroide *asteroides;
+int total_asteroides = 0;
 
 // Variable global para el espacio compartido
 EspacioCompartido *espacio_compartido;
@@ -67,7 +70,7 @@ static void log_transaccion_nave(int nave_id, int muerta_id, int deut, int mut, 
 
 /* Busca el índice del asteroide en la posición (nx, ny). Retorna -1 si no lo encuentra */
 static int buscar_asteroide(int nx, int ny) {
-    for (int i = 0; i < sizeof(asteroides) / sizeof(Asteroide); i++) {
+    for (int i = 0; i < total_asteroides; i++) {
         if (asteroides[i].active &&
             asteroides[i].col == nx &&
             asteroides[i].row == ny)
@@ -283,12 +286,16 @@ int main(int argc, char *argv[]) {
 
 
     /* Inicializa el arreglo para asteroides */
+
+    total_asteroides = NUM_ASTEROIDS;
+
     asteroides = (Asteroide *)malloc(sizeof(Asteroide) * NUM_ASTEROIDS);
 
     if (asteroides == NULL) {
         printf("Error: No hay suficiente memoria disponible.\n");
         return 1;
     }
+
     /* Inicializa asteroides y sus mutexes individuales */
     place_asteroids(espacio_compartido->map);
 
@@ -368,7 +375,7 @@ int main(int argc, char *argv[]) {
     mq_unlink(RECEIVER_MESSAGE_QUEUE);
 
     /* Destruir mutexes */
-    for (int i = 0; i < sizeof(asteroides) / sizeof(Asteroide); i++) {
+    for (int i = 0; i < total_asteroides; i++) {
         pthread_mutex_destroy(&asteroides[i].mutex);
     }
     pthread_mutex_destroy(&log_mutex);
@@ -500,8 +507,8 @@ void *loop_juego(void *param) {
 
 /* Función para colocar e inicializar asteroides en el mapa */
 void place_asteroids(char map[][WIN_WIDTH]) {
-    int placed = sizeof(asteroides) / sizeof(Asteroide)-NUM_ASTEROIDS;
-    while (placed < sizeof(asteroides) / sizeof(Asteroide)) {
+    int placed = total_asteroides-NUM_ASTEROIDS;
+    while (placed < total_asteroides) {
         int row = 1 + rand() % (WIN_HEIGHT - 2);
         int col = 1 + rand() % (WIN_WIDTH  - 2);
 
@@ -528,13 +535,23 @@ void place_asteroids(char map[][WIN_WIDTH]) {
 
 /* Función para manejar compras */
 
-void logica_compra
-(int id, int compraNum) {
+void logica_compra(int id, int compraNum) {
     
-    
-    if (espacio_compartido->naves[id].activa && espacio_compartido->naves[id].hangar) {
-        compra(id, j, compraNum);
+    for (int i = 0; i < NUM_STATIONS; i++) {
+
+        for (int j = 0; j < HANGAR; j++) {
+
+            if (espacio_compartido->estaciones[i].hangar[j] == id) {
+                compra(id, i, compraNum);
+                return;
+            }
+        }
+
+
     }
+    
+    
+    
 }
 
 /* Función para manejar compras */
@@ -608,11 +625,11 @@ void compraCondimentoPizza(int idEstacion) {
         espacio_compartido->estaciones[idEstacion].billetera -= price_condimento;
 
         Asteroide *temporal;
-        temporal = (Asteroide *)realloc(asteroides, sizeof(Asteroide) * (sizeof(asteroides) / sizeof(Asteroide) + NUM_ASTEROIDS));
+        temporal = (Asteroide *)realloc(asteroides, sizeof(Asteroide) * ((unsigned long)total_asteroides + NUM_ASTEROIDS));
 
     if (temporal == NULL) {
         printf("Error: No hay suficiente memoria disponible.\n");
-        return 1;
+        return;
     }
 
     asteroides = temporal;

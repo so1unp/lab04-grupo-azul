@@ -17,7 +17,7 @@
 
 #define ALERTA_COMBUSTIBLE 50
 typedef struct {
-    int  id = -1;
+    int  id;
     int  x; 
     int  y;
     int  combustible;

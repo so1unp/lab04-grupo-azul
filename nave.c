@@ -14,9 +14,12 @@
 
 void mostrar_info(WINDOW *win, const Nave *nave);
 
+volatile sig_atomic_t terminate_flag = 0;
+
+
 void manejador_sigterm(int sig) {
-    
-    finalizar_proceso();
+    (void)sig;  // Evitar advertencia de variable no utilizada
+    terminate_flag = 1;
 }
 
 /* Función para dibujar el mapa y la información de la nave */
@@ -43,18 +46,7 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, Espaci
 
     mostrar_info(info_win, &espacio_compartido->naves[my_id]);
 }
-void finalizar_proceso(){
-    werase(map_win);
-    werase(info_win);
-    werase(alert_win);
-    endwin();
 
-    mq_close(sender);
-    munmap(espacio_compartido, total_shm_size);
-    close(shm_fd);
-
-    exit(EXIT_SUCCESS);
-}
 
 int main() {
     /* if (argc < 2) {
@@ -90,7 +82,7 @@ int main() {
     bool createNave=0;
     for (int i = 0; i < MAX_NAVES   && createNave==0; i++) {
         
-        if(espacio_compartido->naves[i].id == -1){
+        if(espacio_compartido->naves[i].simbolo == 'N'){
             createNave=1;
             
         }
@@ -140,7 +132,7 @@ int main() {
 
     // Loop principal
     int salir = 0;
-    while (!salir) {
+    while (!salir || !terminate_flag) {
         dibujar(map_win, info_win, alert_win, espacio_compartido, my_id);
 
         int tecla = wgetch(map_win);
@@ -172,7 +164,16 @@ int main() {
         }
     }
 
-    finalizar_proceso();
+    werase(map_win);
+    werase(info_win);
+    werase(alert_win);
+    endwin();
+
+    mq_close(sender);
+    munmap(espacio_compartido, total_shm_size);
+    close(shm_fd);
+
+    exit(EXIT_SUCCESS);
 }
 
 /* Función para mostrar información de la nave */
