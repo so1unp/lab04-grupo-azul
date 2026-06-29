@@ -7,11 +7,20 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <mqueue.h>
+#include <signal.h>
 
 #include "nave.h"
 #include "config.h"
 
 void mostrar_info(WINDOW *win, const Nave *nave);
+
+volatile sig_atomic_t terminate_flag = 0;
+
+
+void manejador_sigterm(int sig) {
+    (void)sig;  // Evitar advertencia de variable no utilizada
+    terminate_flag = 1;
+}
 
 /* Función para dibujar el mapa y la información de la nave */
 static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, EspacioCompartido *espacio_compartido, int my_id) {
@@ -38,17 +47,18 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, Espaci
     mostrar_info(info_win, &espacio_compartido->naves[my_id]);
 }
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
+
+int main() {
+    /* if (argc < 2) {
         printf("Uso: %s <id_nave> (0-%d)\n", argv[0], MAX_NAVES - 1);
         return 1;
-    }
+    } */
 
-    int my_id = atoi(argv[1]);
-    if (my_id < 0 || my_id >= MAX_NAVES) {
+    int my_pid = getpid();
+    /* if (my_id < 0 || my_id >= MAX_NAVES) {
         printf("ID de nave invalido (0-%d)\n", MAX_NAVES - 1);
         return 1;
-    }
+    } */
 
     /* Creación e inicialización de la memoria compartida */
     int shm_fd;
@@ -69,6 +79,31 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    bool createNave=0;
+    for (int i = 0; i < MAX_NAVES   && createNave==0; i++) {
+        
+        if(espacio_compartido->naves[i].simbolo != 'N'){
+            createNave=1;
+            
+        }
+
+    }
+    if(!createNave){
+        printf("Naves maximas creadas\n");
+        return 1;
+    }
+
+    struct sigaction sa;
+    sa.sa_handler = manejador_sigterm; // Asignar la función
+    sigemptyset(&sa.sa_mask);           // Bloquear otras señales mientras se ejecuta
+    sa.sa_flags = 0;                   // Sin banderas especiales
+
+    // Registrar el manejador para SIGTERM
+    if (sigaction(SIGTERM, &sa, NULL) == -1) {
+        perror("Error al registrar SIGTERM");
+        return 1;
+    }
+
     // Crear cola de mensajes
     mqd_t sender;
     if ((sender = mq_open(RECEIVER_MESSAGE_QUEUE, O_WRONLY)) == -1) {
@@ -79,7 +114,7 @@ int main(int argc, char *argv[]) {
     }
 
     char msg[128];
-    sprintf(msg, "I N %d", my_id);
+    sprintf(msg, "I N %d", my_pid);
     mq_send(sender, msg, strlen(msg), 0);
 
     // Inicialización NCURSES
@@ -95,9 +130,18 @@ int main(int argc, char *argv[]) {
     WINDOW *info_win = newwin(14, 35, 0, WIN_WIDTH + 2);
     wtimeout(map_win, 100);
 
+    // variable para almacenar el ID de la nave
+    int my_id = -1;
+    for(int i = 0; i < MAX_NAVES; i++) {
+        if (espacio_compartido->naves[i].id == my_pid) {
+            my_id = i;
+            break;
+        }
+    }
+
     // Loop principal
     int salir = 0;
-    while (!salir) {
+    while (!salir && !terminate_flag) {
         dibujar(map_win, info_win, alert_win, espacio_compartido, my_id);
 
         int tecla = wgetch(map_win);
@@ -110,6 +154,7 @@ int main(int argc, char *argv[]) {
             case 'a': dx = -1; break;
             case 'd': dx = 1; break;
             case 'q': salir = 1; break;
+            case 'Q': salir = 1; break;
             //case 'v': compra = 0; break;
             case 'e': compra = 1; break;
             case '1': compra = 2; break;
@@ -120,13 +165,14 @@ int main(int argc, char *argv[]) {
         }
 
         if ((dx != 0 || dy != 0) && espacio_compartido->naves[my_id].activa) {
-            sprintf(msg, "M N %d %d %d", my_id, dx, dy);
+            sprintf(msg, "M N %d %d %d", my_pid, dx, dy);
             mq_send(sender, msg, strlen(msg), 0);
         }
         if (compra != -1 && espacio_compartido->naves[my_id].activa) {
-            sprintf(msg, "C N %d %d", my_id, compra);
+            sprintf(msg, "C N %d %d", my_pid, compra);
             mq_send(sender, msg, strlen(msg), 0);
         }
+        
     }
 
     werase(map_win);

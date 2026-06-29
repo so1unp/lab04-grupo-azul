@@ -9,18 +9,17 @@
 #define WIN_WIDTH  90
 #define WIN_HEIGHT 30
 
-#define WIN_ALERT_HEIGHT 8
+#define WIN_ALERT_HEIGHT 6
 
 #define NUM_STATIONS  2
 #define NUM_ASTEROIDS 10
 #define MAX_NAVES     4
 
-#define price_mutexio       15
-#define price_semaforita    40
-#define price_kernelio      55
+#define price_mutexio       50
+#define price_semaforita    70
+#define price_kernelio      100
 
 #define price_deuterio      2
-
 
 #define price_oxigeno       20
 #define price_reparar       25

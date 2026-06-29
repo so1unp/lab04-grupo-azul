@@ -7,11 +7,19 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <mqueue.h>
+#include <signal.h>
 
 #include "estacion.h"
 #include "config.h"
 
 void mostrar_info(WINDOW *win, const Estacion *estacion);
+
+volatile sig_atomic_t terminate_flag = 0;
+
+void manejador_sigterm(int sig) {
+    (void)sig;  // Evitar advertencia de variable no utilizada
+    terminate_flag = 1;
+}
 
 /* Función para dibujar el mapa y la información de la estación */
 
@@ -39,17 +47,19 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, Espaci
     mostrar_info(info_win, &espacio_compartido->estaciones[my_id]);
 }
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
+
+
+int main() {
+    /* if (argc < 2) {
         printf("Uso: %s <id_estacion> (0-%d)\n", argv[0], NUM_STATIONS - 1);
         return 1;
-    }
-
-    int my_id = atoi(argv[1]);
-    if (my_id < 0 || my_id >= NUM_STATIONS) {
+    } */
+    
+    int my_pid = getpid();
+    /* if (my_id < 0 || my_id >= NUM_STATIONS) {
         printf("ID de estacion invalido (0-%d)\n", NUM_STATIONS - 1);
         return 1;
-    }
+    } */
 
     // Creación e inicialización de la memoria compartida
     int shm_fd;
@@ -69,6 +79,31 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    bool createEstacion=0;
+    for (int i = 0; i < NUM_STATIONS    &&  createEstacion==0; i++) {
+        
+        if(espacio_compartido->estaciones[i].simbolo != 'E'){
+            createEstacion=1;
+            
+        }
+
+    }
+    if(!createEstacion){
+        printf("Estaciones maximas creadas\n");
+        return 1;
+    }
+
+    struct sigaction sa;
+    sa.sa_handler = manejador_sigterm; // Asignar la función
+    sigemptyset(&sa.sa_mask);           // Bloquear otras señales mientras se ejecuta
+    sa.sa_flags = 0;                   // Sin banderas especiales
+
+    // Registrar el manejador para SIGTERM
+    if (sigaction(SIGTERM, &sa, NULL) == -1) {
+        perror("Error al registrar SIGTERM");
+        return 1;
+    }
+
     // Crear cola de mensajes
     mqd_t sender;
     if ((sender = mq_open(RECEIVER_MESSAGE_QUEUE, O_WRONLY)) == -1) {
@@ -79,7 +114,7 @@ int main(int argc, char *argv[]) {
     }
 
     char msg[128];
-    sprintf(msg, "I E %d", my_id);
+    sprintf(msg, "I E %d", my_pid);
     mq_send(sender, msg, strlen(msg), 0);
 
     // Inicialización NCURSES
@@ -95,17 +130,27 @@ int main(int argc, char *argv[]) {
     WINDOW *info_win = newwin(20, 46, 0, WIN_WIDTH);
     wtimeout(map_win, 100);
 
+    // variable para almacenar el ID de la estación
+    int my_id = -1;
+    for(int i = 0; i < NUM_STATIONS; i++) {
+        if (espacio_compartido->estaciones[i].id == my_pid) {
+            my_id = i;
+            break;
+        }
+    }
+
     // Loop principal
     int salir = 0;
-    while (!salir) {
+    
+    while (!salir && !terminate_flag) {
 
         dibujar(map_win, info_win, alert_win, espacio_compartido, my_id);
         //dibujar_alerta(alert_win, espacio_compartido, my_id);
 
         int tecla = wgetch(map_win);
         
-        if (tecla == 'q' || tecla == 'Q') break;
-
+        if (tecla == 'q' || tecla == 'Q') salir = 1;
+        
     }
 
     werase(map_win);
@@ -132,8 +177,8 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
     mvwprintw(win, 1, 2, "Estacion %d", estacion->id);
     mvwprintw(win, 2, 2, "Posicion:    (%d, %d)", estacion->x, estacion->y);
     mvwprintw(win, 3, 2, "Combustible: %d", estacion->combustible);
-    mvwprintw(win, 4, 2, "Oxigeno:     %d", estacion->oxigeno);
-    mvwprintw(win, 5, 2, "Billetera:   %d", estacion->billetera);
+    //mvwprintw(win, 4, 2, "Oxigeno:     %d", estacion->oxigeno);
+    mvwprintw(win, 4, 2, "Billetera:   %d", estacion->billetera);
 
     if (estacion->activa) {
         mvwprintw(win, 6, 2, "Estado:      ACTIVA");
@@ -156,3 +201,4 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
 
     wrefresh(win);
 }
+

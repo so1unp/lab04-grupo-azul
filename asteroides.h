@@ -18,7 +18,6 @@ typedef struct {
     pthread_mutex_t mutex;  /* un mutex por asteroide */
 } Asteroide;
 
-extern Asteroide asteroides[NUM_ASTEROIDS];
-void place_asteroids(char map[][WIN_WIDTH]);
+
 
 #endif /* ASTEROIDS_H */
