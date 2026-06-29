@@ -88,7 +88,7 @@ int main() {
     }
 
     bool createNave=0;
-    for (int i = 0; i < MAX_NAVES; i++&&createNave==0) {
+    for (int i = 0; i < MAX_NAVES   && createNave==0; i++) {
         
         if(espacio_compartido->naves[i].id == -1){
             createNave=1;

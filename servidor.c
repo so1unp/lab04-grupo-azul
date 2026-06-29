@@ -21,7 +21,9 @@
 #define LOG_FILE "log.txt"
 
 // Variable global para los asteroides
-Asteroide asteroides[NUM_ASTEROIDS];
+
+Asteroide *asteroides[];
+
 // Variable global para el espacio compartido
 EspacioCompartido *espacio_compartido;
 
@@ -65,7 +67,7 @@ static void log_transaccion_nave(int nave_id, int muerta_id, int deut, int mut, 
 
 /* Busca el índice del asteroide en la posición (nx, ny). Retorna -1 si no lo encuentra */
 static int buscar_asteroide(int nx, int ny) {
-    for (int i = 0; i < NUM_ASTEROIDS; i++) {
+    for (int i = 0; i < sizeof(asteroides) / sizeof(Asteroide); i++) {
         if (asteroides[i].active &&
             asteroides[i].col == nx &&
             asteroides[i].row == ny)
@@ -96,7 +98,7 @@ static int buscar_nave(int nx, int ny) {
 /* Extrae los minerales del asteroide y los guarda en el cargamento de la nave.
    Lock solo sobre el asteroide tocado, otros asteroides siguen libres. */
 void extraer_asteroide(int nave_id, int nx, int ny) {
-    if (nave_id < 0 || nave_id >= MAX_NAVES)                              return;
+    
     if (!espacio_compartido->naves[nave_id].activa)                        return;
     if (espacio_compartido->naves[nave_id].combustible < COSTO_EXTRACCION) return;
 
@@ -140,7 +142,7 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
 
 /* Crear una nueva estacion */
 void crearEstacion(char tipo, int id) {
-    if (id < 0 || id >= NUM_STATIONS) return;
+    
 
     int row = 1 + rand() % (WIN_HEIGHT - 2);
     int col = 1 + rand() % (WIN_WIDTH  - 2);
@@ -187,7 +189,7 @@ void formateoWinAlert(){
 /* Extrae los recursos de una nave muerta.
    Lock solo sobre la nave tocada */
 void extraer_nave_muerta(int nave_id, int nx, int ny) {
-    if (nave_id < 0 || nave_id >= MAX_NAVES)                              return;
+    
     if (!espacio_compartido->naves[nave_id].activa)                        return;
     if (espacio_compartido->naves[nave_id].combustible < COSTO_EXTRACCION) return;
 
@@ -279,6 +281,14 @@ int main(int argc, char *argv[]) {
 
     formateoWinAlert();
 
+
+    /* Inicializa el arreglo para asteroides */
+    asteroides = (Asteroide *)malloc(sizeof(Asteroide) * NUM_ASTEROIDS);
+
+    if (asteroides == NULL) {
+        printf("Error: No hay suficiente memoria disponible.\n");
+        return 1;
+    }
     /* Inicializa asteroides y sus mutexes individuales */
     place_asteroids(espacio_compartido->map);
 
@@ -358,7 +368,7 @@ int main(int argc, char *argv[]) {
     mq_unlink(RECEIVER_MESSAGE_QUEUE);
 
     /* Destruir mutexes */
-    for (int i = 0; i < NUM_ASTEROIDS; i++) {
+    for (int i = 0; i < sizeof(asteroides) / sizeof(Asteroide); i++) {
         pthread_mutex_destroy(&asteroides[i].mutex);
     }
     pthread_mutex_destroy(&log_mutex);
@@ -490,8 +500,8 @@ void *loop_juego(void *param) {
 
 /* Función para colocar e inicializar asteroides en el mapa */
 void place_asteroids(char map[][WIN_WIDTH]) {
-    int placed = 0;
-    while (placed < NUM_ASTEROIDS) {
+    int placed = sizeof(asteroides) / sizeof(Asteroide)-NUM_ASTEROIDS;
+    while (placed < sizeof(asteroides) / sizeof(Asteroide)) {
         int row = 1 + rand() % (WIN_HEIGHT - 2);
         int col = 1 + rand() % (WIN_WIDTH  - 2);
 
@@ -520,20 +530,10 @@ void place_asteroids(char map[][WIN_WIDTH]) {
 
 void logica_compra
 (int id, int compraNum) {
-    if (id < 0 || id >= MAX_NAVES) return;
     
-    if (espacio_compartido->naves[id].activa) {
-        for (int j = 0; j < NUM_STATIONS; j++) {
-            if (espacio_compartido->estaciones[j].activa) {
-                int dx = abs(espacio_compartido->naves[id].x - espacio_compartido->estaciones[j].x);
-                int dy = abs(espacio_compartido->naves[id].y - espacio_compartido->estaciones[j].y);
-
-                if (dx <= 1 && dy <= 1) {
-                    // La nave está adyacente a la estación j
-                    compra(id, j, compraNum);
-                }
-            }
-        }
+    
+    if (espacio_compartido->naves[id].activa && espacio_compartido->naves[id].hangar) {
+        compra(id, j, compraNum);
     }
 }
 
@@ -606,6 +606,17 @@ void compraSuperArmadura(int idNave, int idEstacion) {
 void compraCondimentoPizza(int idEstacion) {
     if (espacio_compartido->estaciones[idEstacion].billetera >= price_condimento) {
         espacio_compartido->estaciones[idEstacion].billetera -= price_condimento;
+
+        Asteroide *temporal;
+        temporal = (Asteroide *)realloc(asteroides, sizeof(Asteroide) * (sizeof(asteroides) / sizeof(Asteroide) + NUM_ASTEROIDS));
+
+    if (temporal == NULL) {
+        printf("Error: No hay suficiente memoria disponible.\n");
+        return 1;
+    }
+
+    asteroides = temporal;
+
         place_asteroids(espacio_compartido->map);
     }
 }
@@ -639,8 +650,7 @@ void *loop_estacion(void *param) {
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
                 
                 for(int j=0; j<MAX_NAVES; j++) {
-                    if (!espacio_compartido->naves[j].activa)
-                    {
+                    if (!espacio_compartido->naves[j].activa){
                         // Si la nave no está activa, se asegura de que no esté en el hangar
                         for(int k = 0; k<HANGAR; k++){
                             if(espacio_compartido->estaciones[i].hangar[k] == espacio_compartido->naves[j].id) {
@@ -663,8 +673,8 @@ void *loop_estacion(void *param) {
                     if (dx <= 1 && dy <= 1) {
 
                         // La nave j está adyacente a la estación i
-                        for(int k = 0; k<HANGAR; k++){
-                            if(espacio_compartido->estaciones[i].hangar[k] == -1 && espacio_compartido->naves[j].hangar == 0) {
+                        for(int k = 0; k<HANGAR && espacio_compartido->naves[j].hangar == 0; k++ ){
+                            if(espacio_compartido->estaciones[i].hangar[k] == -1) {
 
                                 pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
                                 pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
@@ -725,7 +735,7 @@ void *loop_estacion(void *param) {
 }
 /* Manejo de naves, y su inicialización */
 void manejo_nave(char tipo, int id, int arg1, int arg2) {
-    if (id < 0 || id >= MAX_NAVES) return;
+    
 
     if (tipo == 'I') {
         if (!espacio_compartido->naves[id].activa) {

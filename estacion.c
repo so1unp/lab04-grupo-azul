@@ -90,7 +90,7 @@ int main(/* int argc, /* char *argv[] * *//) {
     }
 
     bool createEstacion=0;
-    for (int i = 0; i < NUM_STATIONS; i++&&createEstacion==0) {
+    for (int i = 0; i < NUM_STATIONS    &&  createEstacion==0; i++) {
         
         if(espacio_compartido->estaciones[i].id == -1){
             createEstacion=1;
