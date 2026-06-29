@@ -184,6 +184,12 @@ int main() {
     munmap(espacio_compartido, total_shm_size);
     close(shm_fd);
 
+    if(terminate_flag) {
+        printf("Nave %d terminada por el servidor\n", my_pid);
+    } else {
+        printf("Nave %d terminada por usuario\n", my_pid);
+    }
+
     exit(EXIT_SUCCESS);
 }
 
