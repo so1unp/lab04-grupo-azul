@@ -7,11 +7,17 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <mqueue.h>
+#include <signal.h>
 
 #include "estacion.h"
 #include "config.h"
 
 void mostrar_info(WINDOW *win, const Estacion *estacion);
+
+void manejador_sigterm(int sig) {
+    
+    finalizar_proceso();
+}
 
 /* Función para dibujar el mapa y la información de la estación */
 
@@ -38,18 +44,32 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, Espaci
 
     mostrar_info(info_win, &espacio_compartido->estaciones[my_id]);
 }
+void finalizar_proceso(){
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
+    werase(map_win);
+    werase(alert_win);
+    werase(info_win);
+    endwin();
+
+    mq_close(sender);
+    munmap(espacio_compartido, total_shm_size);
+    close(shm_fd);
+
+    exit(EXIT_SUCCESS);
+    
+}
+
+int main(/* int argc, /* char *argv[] * *//) {
+    /* if (argc < 2) {
         printf("Uso: %s <id_estacion> (0-%d)\n", argv[0], NUM_STATIONS - 1);
         return 1;
-    }
-
-    int my_id = atoi(argv[1]);
-    if (my_id < 0 || my_id >= NUM_STATIONS) {
+    } */
+    
+    int my_id = getpid();
+    /* if (my_id < 0 || my_id >= NUM_STATIONS) {
         printf("ID de estacion invalido (0-%d)\n", NUM_STATIONS - 1);
         return 1;
-    }
+    } */
 
     // Creación e inicialización de la memoria compartida
     int shm_fd;
@@ -66,6 +86,31 @@ int main(int argc, char *argv[]) {
     if (espacio_compartido == MAP_FAILED) {
         perror("Error en mmap");
         close(shm_fd);
+        return 1;
+    }
+
+    bool createEstacion=0;
+    for (int i = 0; i < NUM_STATIONS; i++&&createEstacion==0) {
+        
+        if(espacio_compartido->estaciones[i].id == -1){
+            createEstacion=1;
+            
+        }
+
+    }
+    if(!createEstacion){
+        printf("Estaciones maximas creadas\n");
+        return 1;
+    }
+
+    struct sigaction sa;
+    sa.sa_handler = manejador_sigterm; // Asignar la función
+    sigemptyset(&sa.sa_mask);           // Bloquear otras señales mientras se ejecuta
+    sa.sa_flags = 0;                   // Sin banderas especiales
+
+    // Registrar el manejador para SIGTERM
+    if (sigaction(SIGTERM, &sa, NULL) == -1) {
+        perror("Error al registrar SIGTERM");
         return 1;
     }
 
@@ -108,16 +153,7 @@ int main(int argc, char *argv[]) {
 
     }
 
-    werase(map_win);
-    werase(alert_win);
-    werase(info_win);
-    endwin();
-
-    mq_close(sender);
-    munmap(espacio_compartido, total_shm_size);
-    close(shm_fd);
-
-    exit(EXIT_SUCCESS);
+    finalizar_proceso();
 }
 
 /* Función para mostrar información de la estación */

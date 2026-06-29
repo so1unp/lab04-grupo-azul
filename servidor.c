@@ -429,6 +429,10 @@ void *print_map(void *param) {
    
 }
 
+void matar_cliente(int id) {
+    kill(id, SIGTERM);
+    
+}
 /* Función para el bucle del juego.
  * Manejo de estaciones y naves */
 void *loop_juego(void *param) {
@@ -442,7 +446,7 @@ void *loop_juego(void *param) {
                 
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
             
-            if (espacio_compartido->estaciones[i].combustible == ALERTA_COMBUSTIBLE) {
+            if (espacio_compartido->estaciones[i].combustible <= ALERTA_COMBUSTIBLE && !espacio_compartido->estaciones[i].alerta) {
                 espacio_compartido->estaciones[i].alerta = true;
                 formateoWinAlert();
 
@@ -458,6 +462,8 @@ void *loop_juego(void *param) {
          
             if (espacio_compartido->estaciones[i].combustible <= 0) {
                 espacio_compartido->estaciones[i].activa = 0;
+                matar_cliente(espacio_compartido->estaciones[i].id);
+
             }
 
         }
@@ -472,6 +478,7 @@ void *loop_juego(void *param) {
                     if (espacio_compartido->naves[i].oxigeno == 0) {
                         espacio_compartido->naves[i].activa = 0;
                         espacio_compartido->map[espacio_compartido->naves[i].y][espacio_compartido->naves[i].x] = 'X';
+                        matar_cliente(espacio_compartido->naves[i].id);
                     }
                 }
             }
@@ -623,11 +630,12 @@ void *loop_estacion(void *param) {
                 espacio_compartido->estaciones[i].cargamento[IDX_SEMAFORITA]=0;
                 espacio_compartido->estaciones[i].cargamento[IDX_KERNELIO]=0;
                 
-                if(espacio_compartido->estaciones[i].alerta == false) {
-                    
+                if(espacio_compartido->estaciones[i].combustible > ALERTA_COMBUSTIBLE && espacio_compartido->estaciones[i].alerta) {
+                    espacio_compartido->estaciones[i].alerta = false;
                     formateoWinAlert();
-                    
                 }
+
+                
                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
                 
                 for(int j=0; j<MAX_NAVES; j++) {
@@ -636,9 +644,10 @@ void *loop_estacion(void *param) {
                         // Si la nave no está activa, se asegura de que no esté en el hangar
                         for(int k = 0; k<HANGAR; k++){
                             if(espacio_compartido->estaciones[i].hangar[k] == espacio_compartido->naves[j].id) {
-                                
-                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
+
                                 pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
+                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
+                                
                                 espacio_compartido->estaciones[i].hangar[k] = -1;
                                 espacio_compartido->naves[j].hangar = 0;
                                 pthread_mutex_unlock(&espacio_compartido->naves[j].mutex);
@@ -655,7 +664,7 @@ void *loop_estacion(void *param) {
 
                         // La nave j está adyacente a la estación i
                         for(int k = 0; k<HANGAR; k++){
-                            if(espacio_compartido->estaciones[i].hangar[k] == -1) {
+                            if(espacio_compartido->estaciones[i].hangar[k] == -1 && espacio_compartido->naves[j].hangar == 0) {
 
                                 pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
                                 pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
@@ -690,14 +699,15 @@ void *loop_estacion(void *param) {
 
                             if(espacio_compartido->estaciones[i].hangar[k] == espacio_compartido->naves[j].id) {
 
-                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
                                 pthread_mutex_lock(&espacio_compartido->naves[j].mutex);
+                                pthread_mutex_lock(&espacio_compartido->estaciones[i].mutex);
+                                
                                 espacio_compartido->naves[j].hangar = 0;
                                 espacio_compartido->estaciones[i].hangar[k] = -1;
                                 pthread_mutex_unlock(&espacio_compartido->naves[j].mutex);
                                 pthread_mutex_unlock(&espacio_compartido->estaciones[i].mutex);
                                 
-                                formateoWinAlert();
+                               
                             }
                         }
     

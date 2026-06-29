@@ -7,11 +7,17 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <mqueue.h>
+#include <signal.h>
 
 #include "nave.h"
 #include "config.h"
 
 void mostrar_info(WINDOW *win, const Nave *nave);
+
+void manejador_sigterm(int sig) {
+    
+    finalizar_proceso();
+}
 
 /* Función para dibujar el mapa y la información de la nave */
 static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, EspacioCompartido *espacio_compartido, int my_id) {
@@ -37,18 +43,30 @@ static void dibujar(WINDOW *map_win, WINDOW *info_win, WINDOW *alert_win, Espaci
 
     mostrar_info(info_win, &espacio_compartido->naves[my_id]);
 }
+void finalizar_proceso(){
+    werase(map_win);
+    werase(info_win);
+    werase(alert_win);
+    endwin();
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
+    mq_close(sender);
+    munmap(espacio_compartido, total_shm_size);
+    close(shm_fd);
+
+    exit(EXIT_SUCCESS);
+}
+
+int main() {
+    /* if (argc < 2) {
         printf("Uso: %s <id_nave> (0-%d)\n", argv[0], MAX_NAVES - 1);
         return 1;
-    }
+    } */
 
-    int my_id = atoi(argv[1]);
-    if (my_id < 0 || my_id >= MAX_NAVES) {
+    int my_id = getpid();
+    /* if (my_id < 0 || my_id >= MAX_NAVES) {
         printf("ID de nave invalido (0-%d)\n", MAX_NAVES - 1);
         return 1;
-    }
+    } */
 
     /* Creación e inicialización de la memoria compartida */
     int shm_fd;
@@ -66,6 +84,31 @@ int main(int argc, char *argv[]) {
     if (espacio_compartido == MAP_FAILED) {
         perror("Error en mmap");
         close(shm_fd);
+        return 1;
+    }
+
+    bool createNave=0;
+    for (int i = 0; i < MAX_NAVES; i++&&createNave==0) {
+        
+        if(espacio_compartido->naves[i].id == -1){
+            createNave=1;
+            
+        }
+
+    }
+    if(!createNave){
+        printf("Naves maximas creadas\n");
+        return 1;
+    }
+
+    struct sigaction sa;
+    sa.sa_handler = manejador_sigterm; // Asignar la función
+    sigemptyset(&sa.sa_mask);           // Bloquear otras señales mientras se ejecuta
+    sa.sa_flags = 0;                   // Sin banderas especiales
+
+    // Registrar el manejador para SIGTERM
+    if (sigaction(SIGTERM, &sa, NULL) == -1) {
+        perror("Error al registrar SIGTERM");
         return 1;
     }
 
@@ -129,16 +172,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    werase(map_win);
-    werase(info_win);
-    werase(alert_win);
-    endwin();
-
-    mq_close(sender);
-    munmap(espacio_compartido, total_shm_size);
-    close(shm_fd);
-
-    exit(EXIT_SUCCESS);
+    finalizar_proceso();
 }
 
 /* Función para mostrar información de la nave */

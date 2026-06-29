@@ -23,7 +23,7 @@
 
 /* Estructura que representa una nave espacial minera */
 typedef struct {
-    int  id;
+    int  id =  -1;
     int  x; 
     int  y;
     int  combustible;
