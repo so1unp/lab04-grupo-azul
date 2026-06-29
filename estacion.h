@@ -11,17 +11,16 @@
 #define IDX_KERNELIO    3
 #define HANGAR 3
 
-#define COMBUSTIBLE_INICIAL  100
-#define OXIGENO_INICIAL_ESTACION      50
+#define COMBUSTIBLE_INICIAL  250
+
 #define BILLETERA_INICIAL   0
 
-#define ALERTA_COMBUSTIBLE 50
+#define ALERTA_COMBUSTIBLE 100
 typedef struct {
     int  id;
     int  x; 
     int  y;
     int  combustible;
-    int  oxigeno;
     int  cargamento[NUM_RECURSOS];
     int  activa;
     char simbolo;

@@ -55,7 +55,7 @@ int main() {
         return 1;
     } */
     
-    int my_id = getpid();
+    int my_pid = getpid();
     /* if (my_id < 0 || my_id >= NUM_STATIONS) {
         printf("ID de estacion invalido (0-%d)\n", NUM_STATIONS - 1);
         return 1;
@@ -82,7 +82,7 @@ int main() {
     bool createEstacion=0;
     for (int i = 0; i < NUM_STATIONS    &&  createEstacion==0; i++) {
         
-        if(espacio_compartido->estaciones[i].simbolo == 'E'){
+        if(espacio_compartido->estaciones[i].simbolo != 'E'){
             createEstacion=1;
             
         }
@@ -114,7 +114,7 @@ int main() {
     }
 
     char msg[128];
-    sprintf(msg, "I E %d", my_id);
+    sprintf(msg, "I E %d", my_pid);
     mq_send(sender, msg, strlen(msg), 0);
 
     // Inicialización NCURSES
@@ -130,17 +130,27 @@ int main() {
     WINDOW *info_win = newwin(20, 46, 0, WIN_WIDTH);
     wtimeout(map_win, 100);
 
+    // variable para almacenar el ID de la estación
+    int my_id = -1;
+    for(int i = 0; i < NUM_STATIONS; i++) {
+        if (espacio_compartido->estaciones[i].id == my_pid) {
+            my_id = i;
+            break;
+        }
+    }
+
     // Loop principal
     int salir = 0;
-    while (!salir || !terminate_flag) {
+    
+    while (!salir && !terminate_flag) {
 
         dibujar(map_win, info_win, alert_win, espacio_compartido, my_id);
         //dibujar_alerta(alert_win, espacio_compartido, my_id);
 
         int tecla = wgetch(map_win);
         
-        if (tecla == 'q' || tecla == 'Q') break;
-
+        if (tecla == 'q' || tecla == 'Q') salir = 1;
+        
     }
 
     werase(map_win);
@@ -167,8 +177,8 @@ void mostrar_info(WINDOW *win, const Estacion *estacion) {
     mvwprintw(win, 1, 2, "Estacion %d", estacion->id);
     mvwprintw(win, 2, 2, "Posicion:    (%d, %d)", estacion->x, estacion->y);
     mvwprintw(win, 3, 2, "Combustible: %d", estacion->combustible);
-    mvwprintw(win, 4, 2, "Oxigeno:     %d", estacion->oxigeno);
-    mvwprintw(win, 5, 2, "Billetera:   %d", estacion->billetera);
+    //mvwprintw(win, 4, 2, "Oxigeno:     %d", estacion->oxigeno);
+    mvwprintw(win, 4, 2, "Billetera:   %d", estacion->billetera);
 
     if (estacion->activa) {
         mvwprintw(win, 6, 2, "Estado:      ACTIVA");

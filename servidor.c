@@ -53,7 +53,7 @@ void *loop_juego(void *param);
 void *loop_estacion(void *param);
 
 void place_asteroids(char map[][WIN_WIDTH]);
-void manejo_nave(char tipo, int id, int arg1, int arg2);
+void manejo_nave(int id, int arg1, int arg2);
 void logica_compra
 (int id, int arg1);
 void compra (int idNave, int idEstacion, int compra);
@@ -142,9 +142,29 @@ void extraer_asteroide(int nave_id, int nx, int ny) {
     // Bitacora transaccion extraccion asteroide
     log_transaccion_asteroide(nave_id, idx, d, m, s, k);
 }
+ //Crear una nueva Nave
+void crearNave(int pid, int id){
+
+    if (!espacio_compartido->naves[id].activa) {
+            espacio_compartido->naves[id].id          = pid;
+            espacio_compartido->naves[id].x           = WIN_WIDTH  / 2;
+            espacio_compartido->naves[id].y           = WIN_HEIGHT / 2;
+            espacio_compartido->naves[id].combustible = COMBUSTIBLE_INICIAL;
+            espacio_compartido->naves[id].oxigeno     = OXIGENO_INICIAL;
+            espacio_compartido->naves[id].escudo      = ESCUDO_INICIAL;
+            espacio_compartido->naves[id].activa      = 1;
+            espacio_compartido->naves[id].simbolo     = 'N';
+            espacio_compartido->naves[id].hangar      = 0;
+            pthread_mutex_init(&espacio_compartido->naves[id].mutex, NULL); /* mutex independiente por nave */
+
+            espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = 'N';
+        }
+
+
+}
 
 /* Crear una nueva estacion */
-void crearEstacion(char tipo, int id) {
+void crearEstacion(int pid,int id) {
     
 
     int row = 1 + rand() % (WIN_HEIGHT - 2);
@@ -155,13 +175,12 @@ void crearEstacion(char tipo, int id) {
        col = 1 + rand() % (WIN_WIDTH  - 2);
     }
 
-    if (tipo == 'I') {
+    
         if (!espacio_compartido->estaciones[id].activa) {
-            espacio_compartido->estaciones[id].id          = id;
+            espacio_compartido->estaciones[id].id          = pid;
             espacio_compartido->estaciones[id].x           = col;
             espacio_compartido->estaciones[id].y           = row;
             espacio_compartido->estaciones[id].combustible = COMBUSTIBLE_INICIAL;
-            espacio_compartido->estaciones[id].oxigeno     = OXIGENO_INICIAL_ESTACION;
             espacio_compartido->estaciones[id].billetera   = BILLETERA_INICIAL;
             espacio_compartido->estaciones[id].activa      = 1;
             espacio_compartido->estaciones[id].alerta      = false;
@@ -179,7 +198,7 @@ void crearEstacion(char tipo, int id) {
 
             espacio_compartido->map[espacio_compartido->estaciones[id].y][espacio_compartido->estaciones[id].x] = 'E';
         }
-    }
+    
 }
 void formateoWinAlert(){
     for (int y = 0; y < WIN_ALERT_HEIGHT; y++) {
@@ -384,6 +403,9 @@ int main(int argc, char *argv[]) {
     munmap(espacio_compartido, total_shm_size);
     close(shm_fd);
     shm_unlink(SHM_MAP_PATH);
+    // Liberar memoria de asteroides
+    free(asteroides);
+    asteroides = NULL;
 
     exit(EXIT_SUCCESS);
 }
@@ -392,6 +414,8 @@ int main(int argc, char *argv[]) {
 void *receive_mq(void *param) {
     ReceiverData *data = (ReceiverData *)param;
     unsigned int prio = 1;
+    int navesCreadas = 0;
+    int estacionesCreadas = 0;
 
     while (1) {
         memset(data->buff, 0, BUFF_SIZE);
@@ -405,17 +429,23 @@ void *receive_mq(void *param) {
         int id = 0, arg1 = 0, arg2 = 0;
 
         if (sscanf(data->buff, "%c %c %d %d %d", &tipo, &entidad, &id, &arg1, &arg2) >= 2) {
-            if (entidad == 'N' && (tipo == 'M' || tipo == 'I')) {
-                manejo_nave(tipo, id, arg1, arg2);
+            if (entidad == 'N' && tipo == 'I' && navesCreadas < MAX_NAVES) {
+                crearNave(id,navesCreadas);
+                navesCreadas++;
             }
+
+            if (entidad == 'N' && tipo == 'M'){
+                manejo_nave(id, arg1, arg2);
+            }
+            
 
             if (entidad == 'N' && tipo == 'C') {
-                logica_compra
-                (id, arg1);
+                logica_compra(id, arg1);
             }
 
-            if (entidad == 'E') {
-                crearEstacion(tipo, id);
+            if (entidad == 'E'&& estacionesCreadas < NUM_STATIONS) {
+                crearEstacion(id,estacionesCreadas);
+                estacionesCreadas++;
             }
         }
     }
@@ -535,13 +565,25 @@ void place_asteroids(char map[][WIN_WIDTH]) {
 
 /* Función para manejar compras */
 
-void logica_compra(int id, int compraNum) {
-    
+void logica_compra(int pid, int compraNum) {
+
+    int id = -1;
+    for(int i = 0; i < MAX_NAVES; i++) {
+        if (espacio_compartido->naves[i].id == pid) {
+            id = i;
+            break;
+        }
+    }
+
+
+    if(espacio_compartido->naves[id].activa == 0) {
+        return;
+    }
     for (int i = 0; i < NUM_STATIONS; i++) {
 
         for (int j = 0; j < HANGAR; j++) {
 
-            if (espacio_compartido->estaciones[i].hangar[j] == id) {
+            if (espacio_compartido->estaciones[i].hangar[j] == pid) {
                 compra(id, i, compraNum);
                 return;
             }
@@ -631,6 +673,7 @@ void compraCondimentoPizza(int idEstacion) {
         printf("Error: No hay suficiente memoria disponible.\n");
         return;
     }
+    total_asteroides += NUM_ASTEROIDS;
 
     asteroides = temporal;
 
@@ -751,26 +794,17 @@ void *loop_estacion(void *param) {
 
 }
 /* Manejo de naves, y su inicialización */
-void manejo_nave(char tipo, int id, int arg1, int arg2) {
-    
+void manejo_nave(int pid, int arg1, int arg2) {
 
-    if (tipo == 'I') {
-        if (!espacio_compartido->naves[id].activa) {
-            espacio_compartido->naves[id].id          = id;
-            espacio_compartido->naves[id].x           = WIN_WIDTH  / 2;
-            espacio_compartido->naves[id].y           = WIN_HEIGHT / 2;
-            espacio_compartido->naves[id].combustible = COMBUSTIBLE_INICIAL;
-            espacio_compartido->naves[id].oxigeno     = OXIGENO_INICIAL;
-            espacio_compartido->naves[id].escudo      = ESCUDO_INICIAL;
-            espacio_compartido->naves[id].activa      = 1;
-            espacio_compartido->naves[id].simbolo     = 'N';
-            espacio_compartido->naves[id].hangar      = 0;
-            pthread_mutex_init(&espacio_compartido->naves[id].mutex, NULL); /* mutex independiente por nave */
-
-            espacio_compartido->map[espacio_compartido->naves[id].y][espacio_compartido->naves[id].x] = 'N';
+    int id = -1;
+    for(int i = 0; i < MAX_NAVES; i++) {
+        if (espacio_compartido->naves[i].id == pid) {
+            id = i;
+            break;
         }
     }
-    else if (tipo == 'M' && espacio_compartido->naves[id].activa) {
+
+    if (espacio_compartido->naves[id].activa && id != -1) {
         int dx = arg1;
         int dy = arg2;
         int nx = espacio_compartido->naves[id].x + dx;
@@ -787,6 +821,7 @@ void manejo_nave(char tipo, int id, int arg1, int arg2) {
                     if (espacio_compartido->naves[id].combustible == 0) {
                         espacio_compartido->naves[id].activa = 0;
                         espacio_compartido->map[ny][nx] = 'X';
+                        matar_cliente(pid);
                     }
                 }
             }

@@ -54,7 +54,7 @@ int main() {
         return 1;
     } */
 
-    int my_id = getpid();
+    int my_pid = getpid();
     /* if (my_id < 0 || my_id >= MAX_NAVES) {
         printf("ID de nave invalido (0-%d)\n", MAX_NAVES - 1);
         return 1;
@@ -82,7 +82,7 @@ int main() {
     bool createNave=0;
     for (int i = 0; i < MAX_NAVES   && createNave==0; i++) {
         
-        if(espacio_compartido->naves[i].simbolo == 'N'){
+        if(espacio_compartido->naves[i].simbolo != 'N'){
             createNave=1;
             
         }
@@ -114,7 +114,7 @@ int main() {
     }
 
     char msg[128];
-    sprintf(msg, "I N %d", my_id);
+    sprintf(msg, "I N %d", my_pid);
     mq_send(sender, msg, strlen(msg), 0);
 
     // Inicialización NCURSES
@@ -130,9 +130,18 @@ int main() {
     WINDOW *info_win = newwin(14, 35, 0, WIN_WIDTH + 2);
     wtimeout(map_win, 100);
 
+    // variable para almacenar el ID de la nave
+    int my_id = -1;
+    for(int i = 0; i < MAX_NAVES; i++) {
+        if (espacio_compartido->naves[i].id == my_pid) {
+            my_id = i;
+            break;
+        }
+    }
+
     // Loop principal
     int salir = 0;
-    while (!salir || !terminate_flag) {
+    while (!salir && !terminate_flag) {
         dibujar(map_win, info_win, alert_win, espacio_compartido, my_id);
 
         int tecla = wgetch(map_win);
@@ -145,6 +154,7 @@ int main() {
             case 'a': dx = -1; break;
             case 'd': dx = 1; break;
             case 'q': salir = 1; break;
+            case 'Q': salir = 1; break;
             //case 'v': compra = 0; break;
             case 'e': compra = 1; break;
             case '1': compra = 2; break;
@@ -155,13 +165,14 @@ int main() {
         }
 
         if ((dx != 0 || dy != 0) && espacio_compartido->naves[my_id].activa) {
-            sprintf(msg, "M N %d %d %d", my_id, dx, dy);
+            sprintf(msg, "M N %d %d %d", my_pid, dx, dy);
             mq_send(sender, msg, strlen(msg), 0);
         }
         if (compra != -1 && espacio_compartido->naves[my_id].activa) {
-            sprintf(msg, "C N %d %d", my_id, compra);
+            sprintf(msg, "C N %d %d", my_pid, compra);
             mq_send(sender, msg, strlen(msg), 0);
         }
+        
     }
 
     werase(map_win);
